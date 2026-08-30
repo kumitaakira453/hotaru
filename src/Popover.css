@@ -11,7 +11,6 @@ body,
   flex-direction: column;
   height: 100%;
   background: var(--bg);
-  border: 1px solid var(--panel-line);
   border-radius: 12px;
   overflow: hidden;
 }

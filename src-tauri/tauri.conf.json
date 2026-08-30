@@ -55,7 +55,7 @@
       "endpoints": [
         "https://github.com/kumitaakira453/hotaru/releases/latest/download/latest.json"
       ],
-      "pubkey": "{{TAURI_SIGNING_PUBLIC_KEY}}"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzMDQ1ODM1MDE3MEMzMDAKUldRQXczQUJOVmdFZzhpeEJmaTFibUxFd0dyaG9zT1Y1ZEVnN1NKZlJkWGR4dm1HNUdKeVkzckwK"
     }
   },
   "bundle": {

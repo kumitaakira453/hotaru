@@ -13,7 +13,7 @@ export function UpdateBanner() {
   const [update, setUpdate] = useState<Update | null>(null);
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  // 起動時と、メニューの「更新を確認」（nonce をインクリメント）で走る
+  // 起動時と、フッターの「更新を確認」（nonce をインクリメント）で走る
   const nonce = useAtomValue(updateCheckNonceAtom);
   const setStatus = useSetAtom(updateStatusAtom);
 
@@ -67,60 +67,31 @@ export function UpdateBanner() {
   if (phase === "hidden" || !update) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[320px] overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-panel)] shadow-2xl">
-      <div className="flex items-start gap-3 p-4">
-        <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
-          <span aria-hidden>🚀</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-[var(--app-fg)]">
-            新しいバージョン {update.version} が利用できます
-          </div>
-          <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">
-            現在 v{update.currentVersion}
-          </div>
-          {update.body && phase === "available" && (
-            <p className="mt-2 line-clamp-3 whitespace-pre-line text-[11px] leading-relaxed text-[var(--app-fg-dim)]">
-              {update.body}
-            </p>
-          )}
-          {phase === "error" && (
-            <p className="mt-2 text-[11px] leading-relaxed text-[var(--app-danger)]">
-              更新に失敗しました: {error}
-            </p>
-          )}
+    <div className="update-card">
+      <div className="update-body">
+        <div className="update-title">新しい版 {update.version} があります</div>
+        <div className="update-current">現在 v{update.currentVersion}</div>
 
-          {phase === "downloading" ? (
-            <div className="mt-3">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-hover)]">
-                <div
-                  className="h-full bg-[var(--app-accent)] transition-[width] duration-150"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="mt-1.5 text-[11px] text-[var(--app-muted)]">
-                ダウンロード中… {pct}%
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={runUpdate}
-                className="rounded-lg bg-[var(--app-accent)] px-3 py-1.5 text-[12px] font-medium text-white transition hover:opacity-90"
-              >
-                {phase === "error" ? "再試行" : "更新して再起動"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhase("hidden")}
-                className="rounded-lg px-3 py-1.5 text-[12px] text-[var(--app-muted)] transition hover:bg-[var(--app-hover)] hover:text-[var(--app-fg)]"
-              >
-                後で
-              </button>
-            </div>
-          )}
-        </div>
+        {update.body && phase === "available" && <p className="update-note">{update.body}</p>}
+        {phase === "error" && <p className="update-error">更新に失敗しました: {error}</p>}
+
+        {phase === "downloading" ? (
+          <div className="update-progress">
+            <span className="update-track">
+              <span className="update-fill" style={{ width: `${pct}%` }} />
+            </span>
+            <span className="update-pct">受け取り中 {pct}%</span>
+          </div>
+        ) : (
+          <div className="update-actions">
+            <button className="primary" onClick={() => void runUpdate()}>
+              {phase === "error" ? "もう一度" : "更新して再起動"}
+            </button>
+            <button className="ghost" onClick={() => setPhase("hidden")}>
+              後で
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

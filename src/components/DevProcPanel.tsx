@@ -73,7 +73,7 @@ function sideNote(p: DevProc, by: GroupBy): string {
 }
 
 /** 名前も置き場所も同じものは、数をまとめて 1 行にする。 */
-function bundle(items: DevProc[], by: GroupBy): Row[] {
+function bundle(items: DevProc[]): Row[] {
   const map = new Map<string, DevProc[]>();
   for (const p of items) {
     const k = `${p.name}|${p.kind}|${p.project ?? ""}|${p.owner}`;
@@ -113,7 +113,7 @@ export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
   const groups = useMemo(() => {
     if (groupBy === "none") {
       return [
-        { key: "", rows: bundle(shown, groupBy), mb: shown.reduce((a, p) => a + p.rss_mb, 0) },
+        { key: "", rows: bundle(shown), mb: shown.reduce((a, p) => a + p.rss_mb, 0) },
       ];
     }
     const map = new Map<string, DevProc[]>();
@@ -126,7 +126,7 @@ export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
     return [...map.entries()]
       .map(([key, items]) => ({
         key,
-        rows: bundle(items, groupBy),
+        rows: bundle(items),
         mb: items.reduce((a, p) => a + p.rss_mb, 0),
       }))
       .sort((a, b) => b.mb - a.mb);

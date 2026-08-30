@@ -170,6 +170,19 @@ button:disabled {
   cursor: default;
 }
 
+.ghost {
+  background: transparent;
+  border: 1px solid var(--panel-line);
+  color: var(--fg-dim);
+  padding: 4px 11px;
+  font-size: 11.5px;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--track);
+  color: var(--fg);
+}
+
 .refresh {
   display: flex;
   align-items: center;
@@ -1512,7 +1525,7 @@ button:disabled {
 }
 
 .foot-status.warn {
-  color: var(--hot);
+  color: var(--fg-faint);
 }
 
 .foot .ghost {
@@ -1522,4 +1535,101 @@ button:disabled {
 
 .foot-status + .ghost {
   margin-left: 0;
+}
+
+/* 更新の知らせ */
+.update-card {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  width: 290px;
+  z-index: 50;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  animation: rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.update-body {
+  padding: 11px 12px;
+}
+
+.update-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.update-current {
+  font-size: 10px;
+  color: var(--fg-faint);
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-note {
+  margin: 7px 0 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--fg-dim);
+  white-space: pre-line;
+  max-height: 54px;
+  overflow: hidden;
+}
+
+.update-error {
+  margin: 7px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--hot);
+}
+
+.update-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.update-progress {
+  margin-top: 10px;
+}
+
+.update-track {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.update-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 150ms linear;
+}
+
+.update-pct {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
 }

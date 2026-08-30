@@ -6,6 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const FIVE_HOUR: i64 = 5 * 3600;
 /// 7 日枠の長さ。
 const SEVEN_DAY: i64 = 7 * 86400;
+/// 枠が始まって間もないうちは、わずかな使用量でも見込みが跳ね上がる。
+/// この割合を過ぎるまでは見込みを出さない。
+const PROJECTION_FLOOR: f64 = 0.08;
 
 /// statusline から書き出されたキャッシュの場所。
 fn cache_path() -> PathBuf {
@@ -120,24 +123,28 @@ fn to_window(raw: Option<RawWindow>, now: i64, window_secs: Option<i64>) -> Opti
         _ => None,
     };
 
-    // 枠の開始からの消費ペースを伸ばして、100% に届く時刻を見積もる。
-    let projected_full_at = match started_at {
-        Some(start) if now > start && used > 0.0 && used < 100.0 => {
-            let pace = used / (now - start) as f64;
-            if pace > 0.0 {
-                Some(now + ((100.0 - used) / pace) as i64)
-            } else {
+    // 消費ペースは、枠がある程度進んでからでないと当てにならない。
+    let pace = match (started_at, window_secs) {
+        (Some(start), Some(w)) if w > 0 && now > start => {
+            let elapsed = (now - start) as f64;
+            if elapsed < w as f64 * PROJECTION_FLOOR {
                 None
+            } else {
+                Some(used / elapsed)
             }
         }
         _ => None,
     };
 
+    // 今のペースのまま 100% に届く時刻。
+    let projected_full_at = match pace {
+        Some(p) if p > 0.0 && used < 100.0 => Some(now + ((100.0 - used) / p) as i64),
+        _ => None,
+    };
+
     // 枠が終わる時点まで同じ調子で使い続けたら、どこまで届くか。
-    let projected_at_reset = match (started_at, window_secs) {
-        (Some(start), Some(w)) if now > start && w > 0 => {
-            Some(used * w as f64 / (now - start) as f64)
-        }
+    let projected_at_reset = match (pace, window_secs) {
+        (Some(p), Some(w)) => Some(p * w as f64),
         _ => None,
     };
 
