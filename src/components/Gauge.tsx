@@ -134,15 +134,13 @@ function LevelIcon({ tone }: { tone: Level }) {
 
 type Props = {
   label: string;
-  /** 輪の中に出す短い呼び名。 */
-  short: string;
   hint: string;
   /** 枠ごとの基調色。 */
   tone: Tone;
   window: LimitWindow | null;
 };
 
-export function Gauge({ label, short, hint, tone, window: w }: Props) {
+export function Gauge({ label, hint, tone, window: w }: Props) {
   // 開いた瞬間に 0 から伸ばして、値の大きさを動きで感じられるようにする。
   const [shown, setShown] = useState(0);
   const target = w ? Math.min(w.used_percentage, 100) : 0;
@@ -203,16 +201,14 @@ export function Gauge({ label, short, hint, tone, window: w }: Props) {
             />
           )}
         </svg>
+        {/* 枠の呼び名は右の見出しに出ているので、中は数字だけにする */}
         <div className="gauge-center">
           {w ? (
-            <>
-              {/* 単位は幅に数えない置き方にして、桁が輪の中心からずれないようにする */}
-              <span className="gauge-pct" style={{ color }}>
-                {Math.round(w.used_percentage)}
-                <span className="gauge-unit">%</span>
-              </span>
-              <span className="gauge-caption">{short} 使用済み</span>
-            </>
+            // 単位は幅に数えない置き方にして、桁が輪の中心からずれないようにする
+            <span className="gauge-pct" style={{ color }}>
+              {Math.round(w.used_percentage)}
+              <span className="gauge-unit">%</span>
+            </span>
           ) : (
             <span className="gauge-empty">—</span>
           )}

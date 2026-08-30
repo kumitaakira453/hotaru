@@ -362,14 +362,12 @@ export default function App() {
 
             <Gauge
               label="5 時間"
-              short="5h"
               hint=""
               tone="day"
               window={limits?.five_hour ?? null}
             />
             <Gauge
               label="7 日"
-              short="7d"
               hint=""
               tone="week"
               window={limits?.seven_day ?? null}

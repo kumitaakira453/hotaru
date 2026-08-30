@@ -1012,15 +1012,6 @@ button:disabled {
   transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.gauge-caption {
-  margin-top: 4px;
-  font-size: 10px;
-  color: var(--fg-dim);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
 .gauge-note {
   font-size: 9.5px;
   color: var(--fg-faint);
