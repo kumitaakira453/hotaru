@@ -148,8 +148,14 @@ fn spawn_refresh_loop(app: tauri::AppHandle) {
             let key = (percentage.map(|p| p.round() as i32), has_stale);
             if last != Some(key) {
                 if let Some(tray) = app.tray_by_id(TRAY_ID) {
-                    let _ = tray.set_icon_as_template(!alert);
-                    let _ = tray.set_icon(Some(tray_icon::render(percentage, has_stale, alert)));
+                    // set_icon は単体だとテンプレート指定を落とし、暗いメニューバーで
+                    // 黒いまま沈んで見えなくなる。必ず両方を一度に渡す。
+                    let _ = tray.set_icon_with_as_template(
+                        Some(tray_icon::render(percentage, has_stale, alert)),
+                        !alert,
+                    );
+                    // 輪だけでは細かい割合が読めないので、隣に数字も出す。
+                    let _ = tray.set_title(percentage.map(|p| format!("{}%", p.round() as i32)));
                 }
                 last = Some(key);
             }
