@@ -1434,6 +1434,11 @@ button:disabled {
   filter: blur(2px);
 }
 
+/* 内訳を持つ行は、どこを押しても開く */
+.dev.expandable {
+  cursor: pointer;
+}
+
 .dev-count {
   display: inline-flex;
   align-items: center;
@@ -1457,10 +1462,12 @@ button:disabled {
   background: var(--accent-soft);
 }
 
-/* 高さを補間して、いきなり現れないようにする */
+/* 高さを補間して、いきなり現れないようにする。
+   内側だけを切ると畳んだときにパディングの帯が残るので、外側でも切る。 */
 .dev-children-wrap {
   display: grid;
   grid-template-rows: 0fr;
+  overflow: hidden;
   transition: grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 

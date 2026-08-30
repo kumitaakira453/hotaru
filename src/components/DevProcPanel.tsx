@@ -190,9 +190,23 @@ export function DevProcPanel({ list, busy, vanishing, stopping, onKill }: Props)
     return (
       <li key={r.key} className={"dev-row" + (gone ? " vanishing" : "")}>
         <div
-          className={"dev" + (r.stale > 0 ? " stale" : "") + (busyHere ? " stopping" : "")}
+          className={
+            "dev" +
+            (r.stale > 0 ? " stale" : "") +
+            (busyHere ? " stopping" : "") +
+            (many ? " expandable" : "")
+          }
           style={{ ["--share" as string]: `${(r.mb / maxMb) * 100}%` }}
           title={r.sample.cmd}
+          onClick={
+            many
+              ? (e) => {
+                  // 選択や内訳ボタンの操作はそのまま通す
+                  if ((e.target as HTMLElement).closest("input, button")) return;
+                  toggleRow(r.key);
+                }
+              : undefined
+          }
         >
           {/* 稼働中のものは掴めないようにして、事故を起こしようがなくする */}
           {busyHere ? (
