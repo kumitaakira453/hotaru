@@ -11,6 +11,8 @@ const PERIODS: { days: number; label: string }[] = [
 
 /** 平均のこの倍を超えた日は、突出した日として色を変える。 */
 const SPIKE_RATIO = 1.5;
+/** 棒をなぞっている間に何度も集計しないよう、落ち着くまで待つ。 */
+const HOVER_SETTLE_MS = 180;
 
 function shortTokens(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -48,26 +50,41 @@ type Props = {
 };
 
 export function UsageChart({ history, period, onPeriodChange }: Props) {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [dayHours, setDayHours] = useState<number[] | null>(null);
+  // 最後に指した日を覚えておく。離れても見ていた日のままにする。
+  const [picked, setPicked] = useState<string | null>(null);
+  // どの日の集計かを一緒に持ち、選んでいる日と一致した時だけ使う。
+  const [hourData, setHourData] = useState<{ date: string; hours: number[] } | null>(null);
+  const [hourLoading, setHourLoading] = useState(false);
+  const [hourError, setHourError] = useState<string | null>(null);
 
   const days = history?.days ?? [];
-  const index = Math.max(0, hovered ? days.findIndex((d) => d.date === hovered) : days.length - 1);
+  const index = Math.max(0, picked ? days.findIndex((d) => d.date === picked) : days.length - 1);
   const shownDate = days[index]?.date ?? null;
 
-  // 選んだ日の時間帯は会話ログから数える。集計が返るまでは前の値を残す。
+  // 選んだ日の時間帯は会話ログから数える。件数が多いので少し待ってから走らせる。
   useEffect(() => {
     if (!shownDate) return;
     let cancelled = false;
-    void invoke<number[]>("read_day_hours", { date: shownDate })
-      .then((h) => {
-        if (!cancelled) setDayHours(h);
-      })
-      .catch(() => {
-        if (!cancelled) setDayHours(null);
-      });
+    setHourLoading(true);
+    setHourError(null);
+    const timer = window.setTimeout(() => {
+      void invoke<number[]>("read_day_hours", { date: shownDate })
+        .then((h) => {
+          if (!cancelled) setHourData({ date: shownDate, hours: h });
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setHourData(null);
+            setHourError(String(e));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setHourLoading(false);
+        });
+    }, HOVER_SETTLE_MS);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [shownDate]);
 
@@ -97,7 +114,7 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
     );
   }
 
-  const { peak_tokens, average_tokens, hour_counts } = history;
+  const { peak_tokens, average_tokens } = history;
   const shown: DayUsage = days[index];
   const prev = index > 0 ? days[index - 1] : null;
 
@@ -105,11 +122,11 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
   const vsPrev = prev && prev.tokens > 0 ? (shown.tokens / prev.tokens - 1) * 100 : null;
   const spikes = days.filter((d) => average_tokens > 0 && d.tokens > average_tokens * SPIKE_RATIO);
 
-  // 選んだ日の集計が取れていればそちらを、無ければ全期間の傾向を出す。
-  const perDay = dayHours != null && dayHours.some((n) => n > 0);
-  const hours = perDay ? dayHours! : hour_counts;
-  const peakHour = hours.indexOf(Math.max(...hours));
-  const hourMax = Math.max(...hours, 1);
+  // 表示している日の集計だけを使う。揃っていなければ数字を出さない。
+  const fresh = hourData?.date === shown.date ? hourData.hours : null;
+  const hasRecord = fresh != null && fresh.some((n) => n > 0);
+  const hourMax = fresh ? Math.max(...fresh, 1) : 1;
+  const peakHour = fresh ? fresh.indexOf(Math.max(...fresh)) : -1;
 
   return (
     <section className="panel">
@@ -120,7 +137,7 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
 
       {selector}
 
-      <div className="chart" onMouseLeave={() => setHovered(null)}>
+      <div className="chart">
         {/* 平均の高さに線を置くと、どの日が跳ねているかがそのまま見える */}
         {peak_tokens > 0 && average_tokens > 0 && (
           <div
@@ -135,13 +152,10 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
             <button
               key={d.date}
               className={
-                "bar-slot" +
-                (d.date === shown.date ? " active" : "") +
-                (isToday(d.date) ? " today" : "") +
-                (spike ? " spike" : "")
+                "bar-slot" + (d.date === shown.date ? " active" : "") + (spike ? " spike" : "")
               }
-              onMouseEnter={() => setHovered(d.date)}
-              onFocus={() => setHovered(d.date)}
+              onMouseEnter={() => setPicked(d.date)}
+              onFocus={() => setPicked(d.date)}
               aria-label={`${shortDate(d.date)} ${shortTokens(d.tokens)} トークン`}
             >
               <span className="bar" style={{ height: `${Math.max(ratio * 100, 2)}%` }} />
@@ -166,6 +180,11 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
             {shortDate(shown.date)}
             <span className="muted">（{weekdayOf(shown.date)}）</span>
             {isToday(shown.date) && <span className="day-today">今日</span>}
+            {shown.provisional && (
+              <span className="day-tent" title="日次集計がまだ回っていないため会話ログから数えた値">
+                暫定
+              </span>
+            )}
           </span>
           <span className="day-tokens">{shortTokens(shown.tokens)}</span>
         </div>
@@ -196,23 +215,36 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
         </dl>
       </div>
 
-      {/* その日のどの時間に動いていたか */}
+      {/* その日のどの時間に動いていたか。集計が揃うまでは数字を出さない */}
       <div className="hours">
         <div className="hours-head">
-          <span>
-            {perDay ? `${shortDate(shown.date)} の時間帯` : "よく使う時間帯"}
-            {!perDay && <span className="muted"> 全期間の傾向</span>}
-          </span>
+          <span>{shortDate(shown.date)} の時間帯</span>
           <span className="muted">
-            {hours[peakHour] > 0 ? `${peakHour}時ごろが最多` : "記録なし"}
+            {hourLoading ? (
+              <>
+                <span className="hours-spinner" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                集計中
+              </>
+            ) : hourError
+                ? "集計できませんでした"
+                : hasRecord
+                  ? `${peakHour}時ごろが最多`
+                  : "記録なし"}
           </span>
         </div>
-        <div className="hours-chart">
-          {hours.map((n, h) => (
+        <div className={"hours-chart" + (hourLoading ? " loading" : "")}>
+          {(fresh ?? Array(24).fill(0)).map((n, h) => (
             <span
               key={h}
-              className={"hour" + (h === peakHour && n > 0 ? " peak" : "")}
-              style={{ height: `${Math.max((n / hourMax) * 100, 3)}%` }}
+              className={"hour" + (hasRecord && h === peakHour ? " peak" : "")}
+              style={{
+                ["--i" as string]: h,
+                height: hasRecord ? `${Math.max((n / hourMax) * 100, 3)}%` : "3%",
+              }}
               title={`${h}時 ${n.toLocaleString()}`}
             />
           ))}

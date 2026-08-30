@@ -6,9 +6,12 @@ const STROKE = 10;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+/** 枠ごとの基調色。落ち着いている間だけ分け、危険域は揃える。 */
+type Tone = "day" | "week";
+
 // 使用率の帯ごとの色。メニューバーのアイコンと同じ移り変わりにする。
-function hueFor(pct: number): string {
-  if (pct < 55) return "var(--calm)";
+function hueFor(pct: number, tone: Tone): string {
+  if (pct < 55) return tone === "week" ? "var(--calm-week)" : "var(--calm)";
   if (pct < 85) return "var(--warm)";
   return "var(--hot)";
 }
@@ -91,10 +94,12 @@ type Props = {
   /** 輪の中に出す短い呼び名。 */
   short: string;
   hint: string;
+  /** 枠ごとの基調色。 */
+  tone: Tone;
   window: LimitWindow | null;
 };
 
-export function Gauge({ label, short, hint, window: w }: Props) {
+export function Gauge({ label, short, hint, tone, window: w }: Props) {
   // 開いた瞬間に 0 から伸ばして、値の大きさを動きで感じられるようにする。
   const [shown, setShown] = useState(0);
   const target = w ? Math.min(w.used_percentage, 100) : 0;
@@ -104,14 +109,17 @@ export function Gauge({ label, short, hint, window: w }: Props) {
     return () => cancelAnimationFrame(id);
   }, [target]);
 
-  const color = hueFor(target);
   const offset = CIRCUMFERENCE * (1 - shown / 100);
   const elapsedPct = w?.elapsed_ratio != null ? w.elapsed_ratio * 100 : null;
   const projected = w?.projected_at_reset ?? null;
+  // 着地の見込みまで含めて危うさを測る。輪も帯も数字も同じ色で通し、
+  // 「今は少ないが、このままだと危ない」を一目で分かるようにする。
+  const color = hueFor(Math.max(target, projected ?? 0), tone);
   // 見込みの弧は現在値より先の部分だけを淡く重ねる。
   const projectedCapped = projected != null ? Math.min(projected, 100) : null;
   const projectedOffset =
     projectedCapped != null ? CIRCUMFERENCE * (1 - projectedCapped / 100) : null;
+  const landingColor = color;
 
   return (
     <section className="gauge">
@@ -131,7 +139,7 @@ export function Gauge({ label, short, hint, window: w }: Props) {
               cy={SIZE / 2}
               r={RADIUS}
               strokeWidth={STROKE}
-              stroke={color}
+              stroke={landingColor}
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={projectedOffset}
               transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
@@ -187,17 +195,20 @@ export function Gauge({ label, short, hint, window: w }: Props) {
               )}
               {projected != null && (
                 <div className="bar-row">
-                  <span className="bar-name">着地見込</span>
+                  <span className="bar-name">
+                    着地見込
+                    {w.provisional && <span className="bar-tent">仮</span>}
+                  </span>
                   <span className="bar-track">
                     <span
-                      className="bar-fill"
+                      className="bar-fill landing"
                       style={{
                         width: `${Math.min(projected, 100)}%`,
-                        background: hueFor(projected),
+                        background: landingColor,
                       }}
                     />
                   </span>
-                  <span className="bar-num" style={{ color: hueFor(projected) }}>
+                  <span className="bar-num" style={{ color: landingColor }}>
                     {Math.round(projected)}%
                   </span>
                 </div>
@@ -216,16 +227,18 @@ export function Gauge({ label, short, hint, window: w }: Props) {
                 {w.used_percentage >= 100
                   ? "上限に到達"
                   : projected == null
-                    ? "見込みは未算出"
+                    ? "ペースはまだ不明"
                     : w.exhausts_before_reset && w.projected_full_at != null
-                      ? `${clockOf(w.projected_full_at)} に上限到達`
+                      ? `${clockOf(w.projected_full_at)} に上限到達${w.provisional ? "（仮）" : ""}`
                       : elapsedPct != null && elapsedPct >= 98
                         ? "まもなくリセット"
-                        : "リセットまで余裕あり"}
+                        : `リセットまで余裕あり${w.provisional ? "（仮）" : ""}`}
               </span>
 
               <span className="gauge-note">
-                枠の開始からの平均ペースによる目安。まとめて使うと大きく変動
+                {w.provisional
+                  ? "枠が始まったばかりの暫定値。少し使うだけで大きく振れる"
+                  : "枠の開始からの平均ペースによる目安。まとめて使うと大きく変動"}
               </span>
             </div>
           </>

@@ -9,6 +9,7 @@
   --fg-faint: #8b94a3;
   --track: rgba(18, 24, 34, 0.08);
   --calm: #3f9440;
+  --calm-week: #4f57bd;
   --warm: #bd7213;
   --hot: #cf3b3b;
   --accent: #1f7fb6;
@@ -30,6 +31,7 @@
     --fg-faint: #6c7788;
     --track: rgba(255, 255, 255, 0.075);
     --calm: #9ae676;
+    --calm-week: #9aa8ff;
     --warm: #ffba54;
     --hot: #ff6b6b;
     --accent: #7ad0ff;
@@ -51,6 +53,7 @@
   --fg-faint: #6c7788;
   --track: rgba(255, 255, 255, 0.075);
   --calm: #9ae676;
+  --calm-week: #9aa8ff;
   --warm: #ffba54;
   --hot: #ff6b6b;
   --accent: #7ad0ff;
@@ -472,11 +475,6 @@ button:disabled {
   height: 2.5px;
   border-radius: 2px;
   background: var(--accent);
-}
-
-/* 今日は色ではなく縁取りで示し、山の強弱と混ざらないようにする */
-.bar-slot.today .bar {
-  box-shadow: inset 0 0 0 1.5px var(--chart);
 }
 
 .chart-axis {
@@ -1632,4 +1630,75 @@ button:disabled {
 .group {
   display: flex;
   flex-direction: column;
+}
+
+.hours-chart .hour {
+  transition: height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 集計を待つ間は棒を平らにして、見出しの灯りだけで知らせる */
+.hours-chart.loading .hour {
+  opacity: 0.5;
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    height: 12%;
+    opacity: 0.28;
+  }
+  45% {
+    height: 68%;
+    opacity: 0.72;
+  }
+}
+
+/* 見出しの脇でも同じ拍で灯りが揺れる */
+.hours-spinner {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 9px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.hours-spinner span {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--chart);
+  animation: wave 1.25s ease-in-out infinite;
+}
+
+.hours-spinner span:nth-child(2) {
+  animation-delay: 130ms;
+}
+
+.hours-spinner span:nth-child(3) {
+  animation-delay: 260ms;
+}
+
+/* 着地の帯は、輪の外周と同じ淡さにする */
+.bar-fill.landing {
+  opacity: 0.45;
+}
+
+/* まだ振れる段階の見込みに添える印 */
+.bar-tent {
+  margin-left: 3px;
+  padding: 0 3px;
+  border: 1px solid var(--panel-line);
+  border-radius: 3px;
+  font-size: 8.5px;
+  color: var(--fg-faint);
+  vertical-align: 1px;
+}
+
+/* 集計待ちの日に添える印 */
+.day-tent {
+  font-size: 9px;
+  color: var(--fg-faint);
+  border: 1px solid var(--panel-line);
+  border-radius: 20px;
+  padding: 0 5px;
 }

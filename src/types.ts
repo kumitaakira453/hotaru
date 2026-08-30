@@ -13,6 +13,8 @@ export type LimitWindow = {
   projected_at_reset: number | null;
   /** リセットより先に使い切る見込みか。 */
   exhausts_before_reset: boolean;
+  /** 枠が浅く、見込みがまだ大きく振れる段階か。 */
+  provisional: boolean;
 };
 
 export type RateLimits = {
@@ -55,6 +57,8 @@ export type DayUsage = {
   sessions: number;
   tool_calls: number;
   tokens: number;
+  /** 日次集計がまだ回っておらず、会話ログから補った日か。 */
+  provisional: boolean;
 };
 
 export type UsageHistory = {

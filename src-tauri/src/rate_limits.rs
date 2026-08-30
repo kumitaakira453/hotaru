@@ -6,9 +6,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const FIVE_HOUR: i64 = 5 * 3600;
 /// 7 日枠の長さ。
 const SEVEN_DAY: i64 = 7 * 86400;
-/// 枠が始まって間もないうちは、わずかな使用量でも見込みが跳ね上がる。
-/// この割合を過ぎるまでは見込みを出さない。
+/// 枠が始まって間もないうちは、わずかな使用量でも見込みが大きく振れる。
+/// この割合を過ぎるまでは暫定として扱う。
 const PROJECTION_FLOOR: f64 = 0.08;
+/// これより短い経過では割り算が成立しないため、見込み自体を出さない。
+const MIN_ELAPSED_SECS: i64 = 60;
 
 /// statusline から書き出されたキャッシュの場所。
 fn cache_path() -> PathBuf {
@@ -74,6 +76,8 @@ pub struct Window {
     pub projected_at_reset: Option<f64>,
     /// リセットより先に使い切る見込みなら true。
     pub exhausts_before_reset: bool,
+    /// 枠が浅く、見込みがまだ大きく振れる段階なら true。
+    pub provisional: bool,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -123,17 +127,16 @@ fn to_window(raw: Option<RawWindow>, now: i64, window_secs: Option<i64>) -> Opti
         _ => None,
     };
 
-    // 消費ペースは、枠がある程度進んでからでないと当てにならない。
-    let pace = match (started_at, window_secs) {
-        (Some(start), Some(w)) if w > 0 && now > start => {
-            let elapsed = (now - start) as f64;
-            if elapsed < w as f64 * PROJECTION_FLOOR {
-                None
-            } else {
-                Some(used / elapsed)
-            }
-        }
-        _ => None,
+    // 消費ペース。枠が浅いうちは値が振れるため、暫定であることを添えて返す。
+    let elapsed_secs = started_at.map(|start| now - start).unwrap_or(0);
+    let pace = if elapsed_secs >= MIN_ELAPSED_SECS {
+        Some(used / elapsed_secs as f64)
+    } else {
+        None
+    };
+    let provisional = match window_secs {
+        Some(w) if w > 0 => (elapsed_secs as f64) < w as f64 * PROJECTION_FLOOR,
+        _ => false,
     };
 
     // 今のペースのまま 100% に届く時刻。
@@ -163,6 +166,7 @@ fn to_window(raw: Option<RawWindow>, now: i64, window_secs: Option<i64>) -> Opti
         projected_full_at,
         projected_at_reset,
         exhausts_before_reset,
+        provisional,
     })
 }
 

@@ -14,6 +14,8 @@ pub struct DayUsage {
     pub sessions: u64,
     pub tool_calls: u64,
     pub tokens: u64,
+    /// Claude Code の日次集計がまだ回っていない日を、会話ログから補ったもの。
+    pub provisional: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +89,14 @@ pub fn read(days: usize) -> UsageHistory {
             let e = by_date.entry(date.to_string()).or_default();
             e.date = date.to_string();
             e.tokens = sum;
+        }
+    }
+
+    // 日次集計は翌日に回るため、今日ぶんは会話ログから補う。
+    let today = chrono::Local::now().date_naive().format("%Y-%m-%d").to_string();
+    if !by_date.contains_key(&today) {
+        if let Some(d) = count_from_logs(&today) {
+            by_date.insert(today, d);
         }
     }
 
@@ -199,4 +209,91 @@ pub fn day_hours(date: &str) -> Result<Vec<u64>, String> {
         }
     }
     Ok(counts)
+}
+
+/// 当日ぶんを会話ログから数える。
+///
+/// Claude Code の日次集計は翌日に回るため、今日の行はキャッシュに載らない。
+/// 数え方が本家と完全に揃う保証はないので、暫定として扱う。
+fn count_from_logs(date: &str) -> Option<DayUsage> {
+    use chrono::{DateTime, Local, NaiveDate, TimeZone};
+    use std::io::BufRead;
+
+    let target = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
+    let cutoff = target
+        .and_hms_opt(0, 0, 0)
+        .and_then(|n| Local.from_local_datetime(&n).single())?
+        .timestamp();
+
+    let mut files = Vec::new();
+    collect_logs(&home().join(".claude").join("projects"), &mut files);
+
+    let mut day = DayUsage {
+        date: date.to_string(),
+        provisional: true,
+        ..Default::default()
+    };
+    let mut sessions = std::collections::HashSet::new();
+
+    for path in files {
+        let modified = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        if modified < cutoff {
+            continue;
+        }
+
+        let Ok(file) = std::fs::File::open(&path) else {
+            continue;
+        };
+        let mut hit = false;
+        for line in std::io::BufReader::new(file).lines().map_while(Result::ok) {
+            let is_user = line.contains("\"type\":\"user\"");
+            let is_assistant = line.contains("\"type\":\"assistant\"");
+            if !is_user && !is_assistant {
+                continue;
+            }
+            let Some(ts) = extract_timestamp(&line) else {
+                continue;
+            };
+            let Ok(parsed) = DateTime::parse_from_rfc3339(ts) else {
+                continue;
+            };
+            if parsed.with_timezone(&Local).date_naive() != target {
+                continue;
+            }
+
+            hit = true;
+            day.messages += 1;
+            day.tool_calls += line.matches("\"type\":\"tool_use\"").count() as u64;
+
+            if is_assistant {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
+                    if let Some(u) = v.get("message").and_then(|m| m.get("usage")) {
+                        for k in [
+                            "input_tokens",
+                            "output_tokens",
+                            "cache_creation_input_tokens",
+                            "cache_read_input_tokens",
+                        ] {
+                            day.tokens += u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+                        }
+                    }
+                }
+            }
+        }
+        if hit {
+            sessions.insert(path.file_stem().map(|s| s.to_string_lossy().to_string()));
+        }
+    }
+
+    day.sessions = sessions.len() as u64;
+    if day.messages == 0 {
+        None
+    } else {
+        Some(day)
+    }
 }
