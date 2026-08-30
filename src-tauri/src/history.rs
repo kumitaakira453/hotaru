@@ -297,3 +297,117 @@ fn count_from_logs(date: &str) -> Option<DayUsage> {
         Some(day)
     }
 }
+
+/// モデルひとつぶんの消費。
+#[derive(Debug, Serialize, Default, Clone)]
+pub struct ModelUse {
+    /// ログに記録されている識別子。
+    pub model: String,
+    /// 画面に出す呼び名。
+    pub label: String,
+    pub messages: u64,
+    pub input: u64,
+    pub output: u64,
+    pub cache_read: u64,
+    pub cache_write: u64,
+    /// 通した文字の合計。キャッシュの読み書きも含む。
+    pub tokens: u64,
+}
+
+/// `claude-haiku-4-5-20251001` のような識別子を `Haiku 4.5` に均す。
+fn label_of(model: &str) -> String {
+    let body = model.strip_prefix("claude-").unwrap_or(model);
+    // 版に付く括弧書きと日付は呼び名に要らない。
+    let body = body.split('[').next().unwrap_or(body);
+    let parts: Vec<&str> = body
+        .split('-')
+        .filter(|p| !(p.len() == 8 && p.chars().all(|c| c.is_ascii_digit())))
+        .filter(|p| !p.is_empty())
+        .collect();
+    let Some((family, version)) = parts.split_first() else {
+        return model.to_string();
+    };
+    let mut name = String::new();
+    let mut chars = family.chars();
+    if let Some(c) = chars.next() {
+        name.extend(c.to_uppercase());
+        name.push_str(chars.as_str());
+    }
+    if version.is_empty() {
+        name
+    } else {
+        format!("{name} {}", version.join("."))
+    }
+}
+
+/// 指定した時刻以降に、どのモデルをどれだけ使ったかを会話ログから数える。
+///
+/// 5 時間枠の始まりを渡せば、いま消費している枠の内訳がそのまま出る。
+pub fn model_usage(since: i64) -> Result<Vec<ModelUse>, String> {
+    use chrono::DateTime;
+    use std::collections::HashMap;
+    use std::io::BufRead;
+
+    let mut files = Vec::new();
+    collect_logs(&home().join(".claude").join("projects"), &mut files);
+
+    let mut acc: HashMap<String, ModelUse> = HashMap::new();
+    for path in files {
+        // その時刻以降の記録を含みうるのは、以降に触られたファイルだけ。
+        let modified = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        if modified < since {
+            continue;
+        }
+
+        let Ok(file) = std::fs::File::open(&path) else {
+            continue;
+        };
+        for line in std::io::BufReader::new(file).lines().map_while(Result::ok) {
+            // 消費が載るのは応答の行だけ。全文を解く前に絞る。
+            if !line.contains("\"type\":\"assistant\"") {
+                continue;
+            }
+            let Some(ts) = extract_timestamp(&line) else {
+                continue;
+            };
+            let Ok(parsed) = DateTime::parse_from_rfc3339(ts) else {
+                continue;
+            };
+            if parsed.timestamp() < since {
+                continue;
+            }
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
+            let message = &value["message"];
+            let Some(model) = message["model"].as_str() else {
+                continue;
+            };
+            let usage = &message["usage"];
+            let field = |key: &str| usage[key].as_u64().unwrap_or(0);
+
+            let entry = acc.entry(model.to_string()).or_insert_with(|| ModelUse {
+                model: model.to_string(),
+                label: label_of(model),
+                ..Default::default()
+            });
+            entry.messages += 1;
+            entry.input += field("input_tokens");
+            entry.output += field("output_tokens");
+            entry.cache_read += field("cache_read_input_tokens");
+            entry.cache_write += field("cache_creation_input_tokens");
+        }
+    }
+
+    let mut list: Vec<ModelUse> = acc.into_values().collect();
+    for m in &mut list {
+        m.tokens = m.input + m.output + m.cache_read + m.cache_write;
+    }
+    list.sort_by(|a, b| b.tokens.cmp(&a.tokens).then(a.label.cmp(&b.label)));
+    Ok(list)
+}

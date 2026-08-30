@@ -1536,15 +1536,36 @@ button:disabled {
   flex-shrink: 0;
 }
 
-/* モデルごとに分かれた週次の枠 */
-.scoped {
+/* この枠で使ったモデルの内訳 */
+.models {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 2px;
+  padding: 9px 10px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
 }
 
-.scoped-row {
+.models-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.models-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+
+.models-total {
+  font-size: 11px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.model-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1552,30 +1573,46 @@ button:disabled {
   color: var(--fg-dim);
 }
 
-.scoped-name {
-  min-width: 64px;
+.model-name {
+  min-width: 66px;
   font-weight: 600;
+  color: var(--fg);
 }
 
-.scoped-track {
+.model-track {
   flex: 1;
-  height: 4px;
+  height: 5px;
   border-radius: 3px;
   background: var(--track);
   overflow: hidden;
 }
 
-.scoped-fill {
+.model-fill {
   display: block;
   height: 100%;
   border-radius: 3px;
-  background: var(--calm-week);
+  background: var(--chart);
 }
 
-.scoped-num {
-  min-width: 30px;
+.model-share,
+.model-tokens {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.model-share {
+  min-width: 30px;
+}
+
+.model-tokens {
+  min-width: 42px;
+  color: var(--fg-faint);
+}
+
+.models-note {
+  margin-top: 3px;
+  font-size: 9.5px;
+  color: var(--fg-faint);
 }
 
 /* 版と更新の確認 */

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::usage_api::{self, ExtraUsage, ScopedLimit};
+use crate::usage_api::{self, ExtraUsage};
 
 /// 取りに行った結果を短時間だけ使い回す。窓と小窓と定期取得が
 /// 同じ間隔で呼ぶため、そのたびに叩くと無駄に多くなる。
@@ -94,8 +94,6 @@ pub struct RateLimits {
     pub seven_day: Option<Window>,
     /// 支払い枠の使用率。上限が設定されているときだけ入る。
     pub spend_percentage: Option<f64>,
-    /// モデルごとに分かれた週次の枠。能動取得でだけ得られる。
-    pub scoped: Vec<ScopedLimit>,
     /// 上限に達したあとに使える追加分。
     pub extra: Option<ExtraUsage>,
     /// どこから取れた値か。"live" は取りに行った結果、"cache" は statusline の書き置き。
@@ -116,7 +114,6 @@ impl RateLimits {
             five_hour: None,
             seven_day: None,
             spend_percentage: None,
-            scoped: Vec::new(),
             extra: None,
             source: "cache",
             captured_at: None,
@@ -229,7 +226,6 @@ fn read_live() -> Option<RateLimits> {
         five_hour: to_window(as_raw(live.five_hour), now, Some(FIVE_HOUR)),
         seven_day: to_window(as_raw(live.seven_day), now, Some(SEVEN_DAY)),
         spend_percentage: live.spend_percentage,
-        scoped: live.scoped,
         extra: live.extra,
         source: "live",
         captured_at: Some(now),
@@ -267,7 +263,6 @@ fn read_cache() -> RateLimits {
         five_hour: five,
         seven_day: seven,
         spend_percentage: spend.map(|w| w.used_percentage),
-        scoped: Vec::new(),
         extra: None,
         source: "cache",
         captured_at: raw.captured_at,

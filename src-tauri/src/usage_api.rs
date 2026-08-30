@@ -50,24 +50,6 @@ struct ApiWindow {
 }
 
 #[derive(Debug, Deserialize)]
-struct ApiModel {
-    display_name: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiScope {
-    model: Option<ApiModel>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiLimit {
-    kind: Option<String>,
-    percent: Option<f64>,
-    resets_at: Option<String>,
-    scope: Option<ApiScope>,
-}
-
-#[derive(Debug, Deserialize)]
 struct ApiMoney {
     amount_minor: Option<i64>,
 }
@@ -91,18 +73,8 @@ struct ApiExtra {
 struct ApiUsage {
     five_hour: Option<ApiWindow>,
     seven_day: Option<ApiWindow>,
-    limits: Option<Vec<ApiLimit>>,
     spend: Option<ApiSpend>,
     extra_usage: Option<ApiExtra>,
-}
-
-/// モデルごとに分かれた週次の枠。プランによって出たり出なかったりする。
-#[derive(Debug, serde::Serialize, Clone, PartialEq)]
-pub struct ScopedLimit {
-    /// 「Opus」「Sonnet」など、枠が対応するモデルの呼び名。
-    pub label: String,
-    pub percent: f64,
-    pub resets_at: Option<i64>,
 }
 
 /// 上限に達したあとに使える追加分。
@@ -120,7 +92,6 @@ pub struct Live {
     pub five_hour: Option<(f64, i64)>,
     pub seven_day: Option<(f64, i64)>,
     pub spend_percentage: Option<f64>,
-    pub scoped: Vec<ScopedLimit>,
     pub extra: Option<ExtraUsage>,
 }
 
@@ -138,22 +109,6 @@ fn window_of(w: Option<ApiWindow>) -> Option<(f64, i64)> {
 /// 使用状況を取りに行く。取れなければ None を返し、呼び出し側でキャッシュへ戻す。
 pub fn fetch() -> Option<Live> {
     let raw = request(&credential()?)?;
-
-    // モデル別の枠は limits の中に混ざって届く。呼び名が付いているものだけ拾う。
-    let scoped = raw
-        .limits
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|l| l.kind.as_deref() == Some("weekly_scoped"))
-        .filter_map(|l| {
-            let label = l.scope?.model?.display_name?;
-            Some(ScopedLimit {
-                label,
-                percent: l.percent.unwrap_or(0.0),
-                resets_at: l.resets_at.as_deref().and_then(epoch_of),
-            })
-        })
-        .collect();
 
     // 上限が決まっていない支払い枠は、割合を出しても読み取れないので伏せる。
     let spend_percentage = raw.spend.and_then(|s| {
@@ -182,7 +137,6 @@ pub fn fetch() -> Option<Live> {
         five_hour: window_of(raw.five_hour),
         seven_day: window_of(raw.seven_day),
         spend_percentage,
-        scoped,
         extra,
     })
 }

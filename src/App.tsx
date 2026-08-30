@@ -9,11 +9,13 @@ import { UsageChart } from "./components/UsageChart";
 import { WorkerPanel } from "./components/WorkerPanel";
 import { DevProcPanel } from "./components/DevProcPanel";
 import { updateCheckNonceAtom, updateStatusAtom } from "./state/updater";
+import { ModelBreakdown } from "./components/ModelBreakdown";
 import { RefreshIcon } from "./components/RefreshIcon";
 import type {
   DetectResult,
   DevList,
   KillResult,
+  ModelUse,
   RateLimits,
   StaleProc,
   UsageHistory,
@@ -121,6 +123,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [models, setModels] = useState<ModelUse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(() => {
@@ -186,6 +189,26 @@ export default function App() {
       setLoading(false);
     }
   }, [period]);
+
+  // 枠の内訳は始まりの時刻が要るので、枠が届いてから数える。
+  const windowStart = limits?.five_hour?.started_at ?? null;
+  useEffect(() => {
+    if (windowStart == null) {
+      setModels(null);
+      return;
+    }
+    let cancelled = false;
+    void invoke<ModelUse[]>("read_model_usage", { since: windowStart })
+      .then((m) => {
+        if (!cancelled) setModels(m);
+      })
+      .catch(() => {
+        if (!cancelled) setModels(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [windowStart]);
 
   useEffect(() => {
     void refresh();
@@ -352,23 +375,7 @@ export default function App() {
               window={limits?.seven_day ?? null}
             />
 
-            {/* モデルごとに分かれた週次の枠。プランによっては届かない */}
-            {(limits?.scoped.length ?? 0) > 0 && (
-              <div className="scoped">
-                {limits!.scoped.map((s) => (
-                  <div key={s.label} className="scoped-row">
-                    <span className="scoped-name">{s.label}</span>
-                    <span className="scoped-track">
-                      <span
-                        className="scoped-fill"
-                        style={{ width: `${Math.min(s.percent, 100)}%` }}
-                      />
-                    </span>
-                    <span className="scoped-num">{Math.round(s.percent)}%</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <ModelBreakdown models={models} />
 
             {limits?.spend_percentage != null && (
               <div className="spend">利用枠 {Math.round(limits.spend_percentage)}% を使用</div>

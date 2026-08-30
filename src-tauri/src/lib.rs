@@ -62,6 +62,14 @@ async fn read_day_hours(date: String) -> Result<Vec<u64>, String> {
         .map_err(|e| format!("時間帯の集計に失敗しました: {e}"))?
 }
 
+/// 指定した時刻以降のモデル別の消費。5 時間枠の始まりを渡す用途を想定している。
+#[tauri::command]
+async fn read_model_usage(since: i64) -> Result<Vec<history::ModelUse>, String> {
+    tauri::async_runtime::spawn_blocking(move || history::model_usage(since))
+        .await
+        .map_err(|e| format!("モデル別の集計に失敗しました: {e}"))?
+}
+
 #[tauri::command]
 async fn list_workers() -> Result<workers::WorkerList, String> {
     tauri::async_runtime::spawn_blocking(workers::list)
@@ -271,6 +279,7 @@ pub fn run() {
             read_rate_limits,
             read_usage_history,
             read_day_hours,
+            read_model_usage,
             list_workers,
             detect_stale_procs,
             list_dev_procs,
