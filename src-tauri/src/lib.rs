@@ -92,6 +92,43 @@ fn show_window(app: &tauri::AppHandle) {
     }
 }
 
+/// 他のアプリが全画面のときでもメニューバーの小窓が出るようにする。
+///
+/// 全画面は専用のスペースになるため、標準の設定では小窓がそのスペースへ付いて
+/// 行けず、押しても何も出ないように見える。macOS 側に 2 つ伝える必要がある。
+///
+/// - すべてのスペースに顔を出し、全画面の添え物として扱ってよいこと
+/// - メニューそのものと同じ高さに置くこと（重ねる指定だけでは全画面の下に沈む）
+///
+/// tao の `set_visible_on_all_workspaces` は前者の一部しか立てないので、
+/// ここで直に設定する。
+#[cfg(target_os = "macos")]
+fn float_over_fullscreen(window: &tauri::WebviewWindow) {
+    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+
+    /// NSPopUpMenuWindowLevel。開いたメニューと同じ高さ。
+    const POPUP_MENU_LEVEL: isize = 101;
+
+    let Ok(ptr) = window.ns_window() else {
+        return;
+    };
+    if ptr.is_null() {
+        return;
+    }
+    // tauri が返す生ポインタは、この窓が生きている間だけ有効。
+    let ns = unsafe { &*(ptr as *const NSWindow) };
+    ns.setCollectionBehavior(
+        ns.collectionBehavior()
+            | NSWindowCollectionBehavior::CanJoinAllSpaces
+            | NSWindowCollectionBehavior::FullScreenAuxiliary
+            | NSWindowCollectionBehavior::Stationary,
+    );
+    ns.setLevel(POPUP_MENU_LEVEL);
+}
+
+#[cfg(not(target_os = "macos"))]
+fn float_over_fullscreen(_window: &tauri::WebviewWindow) {}
+
 /// メニューバーのアイコンを押したときの開閉。
 ///
 /// アイコンの位置は実ピクセルで届くため、窓の倍率で論理座標に直してから置く。
@@ -120,6 +157,7 @@ fn toggle_popover(app: &tauri::AppHandle, rect: tauri::Rect) {
         y,
     }));
 
+    float_over_fullscreen(&window);
     let _ = window.show();
     let _ = window.set_focus();
 }
