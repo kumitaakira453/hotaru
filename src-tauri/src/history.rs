@@ -388,6 +388,11 @@ pub fn model_usage(since: i64) -> Result<Vec<ModelUse>, String> {
             let Some(model) = message["model"].as_str() else {
                 continue;
             };
+            // `<synthetic>` のような山括弧つきの名前は、API を通さずに
+            // Claude Code が組み立てた応答に付く。消費が無いので数えない。
+            if model.starts_with('<') {
+                continue;
+            }
             let usage = &message["usage"];
             let field = |key: &str| usage[key].as_u64().unwrap_or(0);
 
@@ -408,6 +413,8 @@ pub fn model_usage(since: i64) -> Result<Vec<ModelUse>, String> {
     for m in &mut list {
         m.tokens = m.input + m.output + m.cache_read + m.cache_write;
     }
+    // 消費が記録されていないものは並べても読み手に何も伝えない。
+    list.retain(|m| m.tokens > 0);
     list.sort_by(|a, b| b.tokens.cmp(&a.tokens).then(a.label.cmp(&b.label)));
     Ok(list)
 }

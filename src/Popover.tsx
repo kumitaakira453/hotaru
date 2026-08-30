@@ -73,8 +73,10 @@ function LimitRow({
       </div>
     );
   }
-  const color = hueFor(w.used_percentage, tone);
   const projected = w.projected_at_reset;
+  // 本体の輪と同じ判定にする。使い切る見込みのときだけ警告色へ振る。
+  const color =
+    projected != null && projected >= 100 ? "var(--hot)" : hueFor(w.used_percentage, tone);
   return (
     <div className="pop-row">
       <div className="pop-row-head">
@@ -99,7 +101,9 @@ function LimitRow({
         <span>
           {clockOf(w.resets_at)} リセット / あと {durationOf(w.resets_in_secs)}
         </span>
-        {projected != null && <span className="muted">着地 {Math.round(projected)}%</span>}
+        {projected != null && (
+          <span style={{ color }}>着地 {Math.round(projected)}%</span>
+        )}
       </div>
     </div>
   );
