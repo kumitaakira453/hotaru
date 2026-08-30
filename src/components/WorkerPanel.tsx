@@ -61,7 +61,11 @@ function summarize(w: Worker): { kind: string; count: number; mb: number }[] {
     e.mb += c.rss_mb;
     by.set(c.kind, e);
   }
-  return [...by.values()].sort((a, b) => b.mb - a.mb);
+  // 分類できなかったものは、大きさに関わらず末尾へ回す。
+  return [...by.values()].sort((a, b) => {
+    const rank = (k: string) => (k === "その他" ? 1 : 0);
+    return rank(a.kind) - rank(b.kind) || b.mb - a.mb;
+  });
 }
 
 type Props = {

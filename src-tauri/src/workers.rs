@@ -10,7 +10,7 @@ fn home() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/"))
 }
 
-/// 子プロセスが何をしているものかの見分け。
+/// 子プロセスが何をしているものかの見分け。上から順に当てる。
 fn kind_of(cmd: &str) -> &'static str {
     if cmd.contains("chrome-devtools-mcp") {
         "ブラウザ操作"
@@ -27,6 +27,11 @@ fn kind_of(cmd: &str) -> &'static str {
         "言語サーバー"
     } else if cmd.contains("typingsInstaller") {
         "型定義の取得"
+    // 操作用に開かれたブラウザ本体。開きっぱなしだと重く、見分けたい。
+    } else if cmd.contains("Google Chrome") || cmd.contains("Chromium") || cmd.contains("Brave") {
+        "ブラウザ"
+    } else if cmd.contains("Caskroom/claude-code") || cmd.starts_with("claude ") {
+        "Claude 本体"
     } else if cmd.contains("/bin/bash") || cmd.contains("/bin/zsh") || cmd.contains("/bin/sh") {
         "シェル"
     } else {

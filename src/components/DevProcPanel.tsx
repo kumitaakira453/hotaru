@@ -129,7 +129,11 @@ export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
         rows: bundle(items),
         mb: items.reduce((a, p) => a + p.rss_mb, 0),
       }))
-      .sort((a, b) => b.mb - a.mb);
+      // 分類できなかったまとまりは、大きさに関わらず末尾へ回す。
+      .sort((a, b) => {
+        const rank = (k: string) => (k === "その他" || k === "作業ディレクトリ外" ? 1 : 0);
+        return rank(a.key) - rank(b.key) || b.mb - a.mb;
+      });
   }, [shown, groupBy]);
 
   if (!list) {
