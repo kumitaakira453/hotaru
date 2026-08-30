@@ -280,11 +280,11 @@ export default function App() {
       {/* 信号機ボタンが浮かぶ帯を空け、その下から中身を始める */}
       <header className="head" data-tauri-drag-region>
         <div className="title" data-tauri-drag-region>
-          <span className="mark" aria-hidden />
+          <span className="mark" aria-hidden data-tauri-drag-region />
           hotaru
         </div>
 
-        <div className="head-actions">
+        <div className="head-actions" data-tauri-drag-region>
           {/* 押すともう片方になる。出ているのは切り替え先の姿。 */}
           <button
             className="theme-btn"
