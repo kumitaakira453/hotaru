@@ -177,7 +177,6 @@ export function WorkerPanel({ list }: Props) {
                       <button className="worker-expand" onClick={() => toggle(w.job_id)}>
                         {open ? "内訳を隠す" : `抱えているプロセス ${w.children.length}`}
                         <span className="muted">
-                          {" "}
                           {summary
                             .slice(0, 3)
                             .map((s) => `${s.kind} ${s.count}`)
