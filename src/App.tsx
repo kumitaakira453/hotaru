@@ -115,6 +115,8 @@ export default function App() {
   const [workers, setWorkers] = useState<WorkerList | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [vanishing, setVanishing] = useState<Set<number>>(new Set());
+  // 停止を頼んでから結果が返るまでの間、どれを処理中か示す。
+  const [stopping, setStopping] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
@@ -224,9 +226,11 @@ export default function App() {
     async (pids: number[]) => {
       if (pids.length === 0) return;
       setBusy(true);
+      setStopping(new Set(pids));
       setError(null);
       try {
         const result = await invoke<KillResult>("kill_stale_procs", { pids });
+        setStopping(new Set());
         // 消えた行は光が引くように見せてから畳む。
         setVanishing(new Set(result.stopped));
         window.setTimeout(() => {
@@ -245,6 +249,7 @@ export default function App() {
         window.setTimeout(() => setNotice(null), 3200);
       } catch (e) {
         setError(String(e));
+        setStopping(new Set());
       } finally {
         setBusy(false);
       }
@@ -422,7 +427,13 @@ export default function App() {
               {procTab === "sessions" && <WorkerPanel list={workers} />}
 
               {procTab === "dev" && (
-                <DevProcPanel list={devList} busy={busy} onKill={kill} vanishing={vanishing} />
+                <DevProcPanel
+                  list={devList}
+                  busy={busy}
+                  onKill={kill}
+                  vanishing={vanishing}
+                  stopping={stopping}
+                />
               )}
 
               {procTab === "stale" && (
@@ -438,7 +449,14 @@ export default function App() {
                         onClick={() => void kill([...selected])}
                         disabled={busy || selected.size === 0}
                       >
-                        {selected.size} 件を一掃
+                        {stopping.size > 0 ? (
+                          <>
+                            <span className="btn-spinner" aria-hidden />
+                            {stopping.size} 件を停止中
+                          </>
+                        ) : (
+                          `${selected.size} 件を一掃`
+                        )}
                       </button>
                     )}
                   </div>
@@ -465,15 +483,20 @@ export default function App() {
                             className={
                               "row" +
                               (p.certain ? " certain" : "") +
+                              (stopping.has(p.pid) ? " stopping" : "") +
                               (vanishing.has(p.pid) ? " vanishing" : "")
                             }
                           >
                             <label>
-                              <input
-                                type="checkbox"
-                                checked={selected.has(p.pid)}
-                                onChange={() => toggle(p.pid)}
-                              />
+                              {stopping.has(p.pid) ? (
+                                <span className="row-spinner" aria-hidden />
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={selected.has(p.pid)}
+                                  onChange={() => toggle(p.pid)}
+                                />
+                              )}
                               <span className="row-main">
                                 <span className="row-top">
                                   <span className="name">{p.name}</span>

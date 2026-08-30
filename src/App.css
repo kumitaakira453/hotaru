@@ -765,11 +765,12 @@ button:disabled {
 }
 
 .tab-badge {
-  background: var(--warm);
+  background: var(--accent);
   color: var(--bg);
   border-radius: 20px;
   font-size: 9.5px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   padding: 0 5px;
   line-height: 15px;
 }
@@ -1764,4 +1765,40 @@ button:disabled {
 
 .level-hot {
   --tone: var(--hot);
+}
+
+/* 停止を頼んでから結果が返るまでの見せ方 */
+.btn-spinner,
+.row-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 1.6px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.btn-spinner {
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.row-spinner {
+  width: 11px;
+  height: 11px;
+  color: var(--fg-faint);
+  margin-top: 2px;
+}
+
+.row.stopping,
+.dev.stopping {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.row.stopping .row-reason,
+.dev.stopping .dev-note {
+  color: var(--fg-faint);
 }

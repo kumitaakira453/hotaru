@@ -96,10 +96,12 @@ type Props = {
   list: DevList | null;
   busy: boolean;
   vanishing: Set<number>;
+  /** 停止を頼んで結果を待っているもの。 */
+  stopping: Set<number>;
   onKill: (pids: number[]) => Promise<void>;
 };
 
-export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
+export function DevProcPanel({ list, busy, vanishing, stopping, onKill }: Props) {
   const [owner, setOwner] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<GroupBy>("kind");
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -183,16 +185,19 @@ export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
     const allPicked = stalePids.length > 0 && stalePids.every((pid) => picked.has(pid));
     const isOpen = opened.has(r.key);
     const gone = r.items.every((p) => vanishing.has(p.pid));
+    const busyHere = r.items.some((p) => stopping.has(p.pid));
 
     return (
       <li key={r.key} className={"dev-row" + (gone ? " vanishing" : "")}>
         <div
-          className={"dev" + (r.stale > 0 ? " stale" : "")}
+          className={"dev" + (r.stale > 0 ? " stale" : "") + (busyHere ? " stopping" : "")}
           style={{ ["--share" as string]: `${(r.mb / maxMb) * 100}%` }}
           title={r.sample.cmd}
         >
           {/* 稼働中のものは掴めないようにして、事故を起こしようがなくする */}
-          {stalePids.length > 0 ? (
+          {busyHere ? (
+            <span className="row-spinner" aria-hidden />
+          ) : stalePids.length > 0 ? (
             <input
               type="checkbox"
               checked={allPicked}
@@ -313,9 +318,16 @@ export function DevProcPanel({ list, busy, vanishing, onKill }: Props) {
           表示中 {shown.length} 件 / {shownMb}MB
           {stoppable.length > 0 ? ` · 止めてよいもの ${stoppable.length}` : ""}
         </span>
-        {picked.size > 0 && (
+        {(picked.size > 0 || stopping.size > 0) && (
           <button className="primary" onClick={() => void sweep()} disabled={busy}>
-            {picked.size} 件を停止
+            {stopping.size > 0 ? (
+              <>
+                <span className="btn-spinner" aria-hidden />
+                {stopping.size} 件を停止中
+              </>
+            ) : (
+              `${picked.size} 件を停止`
+            )}
           </button>
         )}
       </div>
