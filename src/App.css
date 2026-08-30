@@ -370,7 +370,7 @@ button:disabled {
   transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 数字と説明をひとまとまりとして輪の中心に置く */
+/* 中は数字だけなので、そのまま中心へ置けばよい */
 .gauge-center {
   position: absolute;
   inset: 0;
@@ -380,9 +380,7 @@ button:disabled {
   justify-content: center;
 }
 
-/* 単位を幅に数えると桁が左へ寄るので、幅の外へ逃がす */
 .gauge-pct {
-  position: relative;
   font-size: 32px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -390,14 +388,6 @@ button:disabled {
   line-height: 1;
 }
 
-.gauge-unit {
-  position: absolute;
-  left: 100%;
-  bottom: 0.1em;
-  margin-left: 1px;
-  font-size: 13px;
-  opacity: 0.75;
-}
 
 .gauge-empty {
   font-size: 24px;

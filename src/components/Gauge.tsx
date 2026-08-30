@@ -201,13 +201,15 @@ export function Gauge({ label, hint, tone, window: w }: Props) {
             />
           )}
         </svg>
-        {/* 枠の呼び名は右の見出しに出ているので、中は数字だけにする */}
+        {/*
+          中は数字だけにする。単位を添えると、桁を中央に置けば単位が右へはみ出し、
+          文字列ごと中央に置けば桁が左へ寄る。どちらもずれて見えるため置かない。
+          割合であることは輪の形が示しており、% は右の棒にも出ている。
+        */}
         <div className="gauge-center">
           {w ? (
-            // 単位は幅に数えない置き方にして、桁が輪の中心からずれないようにする
             <span className="gauge-pct" style={{ color }}>
               {Math.round(w.used_percentage)}
-              <span className="gauge-unit">%</span>
             </span>
           ) : (
             <span className="gauge-empty">—</span>
