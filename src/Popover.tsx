@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useState } from "react";
+import { RefreshIcon } from "./components/RefreshIcon";
 import type { DetectResult, LimitWindow, RateLimits, WorkerList } from "./types";
 import "./App.css";
 import "./Popover.css";
@@ -160,23 +161,7 @@ export default function Popover() {
         </span>
         {checkedAt && <span className="pop-checked">最終確認 {checkedAt}</span>}
         <button className="pop-refresh" onClick={() => void refresh()} title="取り直す">
-          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
-            <path
-              d="M13.6 8a5.6 5.6 0 1 1-1.7-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-            <path
-              d="M13 1.2v3.2h-3.2"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <RefreshIcon size={12} />
         </button>
       </header>
 

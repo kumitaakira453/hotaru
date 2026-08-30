@@ -9,6 +9,7 @@ import { UsageChart } from "./components/UsageChart";
 import { WorkerPanel } from "./components/WorkerPanel";
 import { DevProcPanel } from "./components/DevProcPanel";
 import { updateCheckNonceAtom, updateStatusAtom } from "./state/updater";
+import { RefreshIcon } from "./components/RefreshIcon";
 import type {
   DetectResult,
   DevList,
@@ -301,29 +302,7 @@ export default function App() {
             disabled={busy || loading}
             title="今すぐ取り直す（⌘R）"
           >
-            <svg
-              className={loading ? "spin" : ""}
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              aria-hidden
-            >
-              <path
-                d="M13.6 8a5.6 5.6 0 1 1-1.7-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M13 1.2v3.2h-3.2"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <RefreshIcon spinning={loading} />
             <span>{loading ? "確認中" : "今すぐ確認"}</span>
           </button>
         </div>
