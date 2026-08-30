@@ -1759,10 +1759,6 @@ button:disabled {
   --tone: var(--calm);
 }
 
-.level-warm {
-  --tone: var(--warm);
-}
-
 .level-hot {
   --tone: var(--hot);
 }

@@ -9,11 +9,14 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** 枠ごとの基調色。落ち着いている間だけ分け、危険域は揃える。 */
 type Tone = "day" | "week";
 
-// 使用率の帯ごとの色。メニューバーのアイコンと同じ移り変わりにする。
+/** 見せ方の段階。上限が迫っているかどうかの 2 つだけ。 */
+type Level = "calm" | "hot";
+
+// 上限が目前に迫ったときだけ色を変える。途中で何%を超えたかは、
+// 残り時間しだいで意味が変わるので基調色のままにする。
 function hueFor(pct: number, tone: Tone): string {
-  if (pct < 55) return tone === "week" ? "var(--calm-week)" : "var(--calm)";
-  if (pct < 85) return "var(--warm)";
-  return "var(--hot)";
+  if (pct >= 85) return "var(--hot)";
+  return tone === "week" ? "var(--calm-week)" : "var(--calm)";
 }
 
 /** 何時にリセットされるかを、今日中なら時刻だけで示す。 */
@@ -91,18 +94,14 @@ function VerdictIcon({ warn }: { warn: boolean }) {
 }
 
 /** 色が何を意味しているかを、言葉とかたちでも伝える。 */
-function levelOf(
-  used: number,
-  projected: number | null,
-): { label: string; tone: "calm" | "warm" | "hot" } {
+function levelOf(used: number, projected: number | null): { label: string; tone: Level } {
   if (used >= 85 || (projected != null && projected >= 100)) {
     return { label: "警告", tone: "hot" };
   }
-  if (used >= 55) return { label: "注意", tone: "warm" };
   return { label: "余裕", tone: "calm" };
 }
 
-function LevelIcon({ tone }: { tone: "calm" | "warm" | "hot" }) {
+function LevelIcon({ tone }: { tone: Level }) {
   if (tone === "hot") {
     return (
       <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
@@ -115,15 +114,6 @@ function LevelIcon({ tone }: { tone: "calm" | "warm" | "hot" }) {
         />
         <path d="M8 6.2v3.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
         <circle cx="8" cy="11.4" r="0.9" fill="currentColor" />
-      </svg>
-    );
-  }
-  if (tone === "warm") {
-    return (
-      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
-        <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M8 4.6v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-        <circle cx="8" cy="11.2" r="0.9" fill="currentColor" />
       </svg>
     );
   }

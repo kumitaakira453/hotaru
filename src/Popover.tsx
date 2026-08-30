@@ -8,10 +8,10 @@ import "./Popover.css";
 
 const REFRESH_EVENT = "hotaru://refreshed";
 
-function hueFor(pct: number): string {
-  if (pct < 55) return "var(--calm)";
-  if (pct < 85) return "var(--warm)";
-  return "var(--hot)";
+// 本体の輪と同じ考え方。上限が目前のときだけ色を変える。
+function hueFor(pct: number, tone: "day" | "week"): string {
+  if (pct >= 85) return "var(--hot)";
+  return tone === "week" ? "var(--calm-week)" : "var(--calm)";
 }
 
 function durationOf(secs: number): string {
@@ -53,7 +53,15 @@ function ageOf(secs: number | null): string {
 }
 
 /** 枠ひとつぶんの行。棒と数字だけで読めるようにする。 */
-function LimitRow({ name, w }: { name: string; w: LimitWindow | null }) {
+function LimitRow({
+  name,
+  tone,
+  w,
+}: {
+  name: string;
+  tone: "day" | "week";
+  w: LimitWindow | null;
+}) {
   if (!w) {
     return (
       <div className="pop-row">
@@ -64,7 +72,7 @@ function LimitRow({ name, w }: { name: string; w: LimitWindow | null }) {
       </div>
     );
   }
-  const color = hueFor(w.used_percentage);
+  const color = hueFor(w.used_percentage, tone);
   const projected = w.projected_at_reset;
   return (
     <div className="pop-row">
@@ -173,8 +181,8 @@ export default function Popover() {
       </header>
 
       <section className="pop-section">
-        <LimitRow name="5 時間枠" w={limits?.five_hour ?? null} />
-        <LimitRow name="7 日枠" w={limits?.seven_day ?? null} />
+        <LimitRow name="5 時間枠" tone="day" w={limits?.five_hour ?? null} />
+        <LimitRow name="7 日枠" tone="week" w={limits?.seven_day ?? null} />
         {limits?.available && (limits.age_secs ?? 0) > 300 && (
           <div className="pop-age">この値は {ageOf(limits.age_secs)}のものです</div>
         )}
