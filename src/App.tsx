@@ -301,9 +301,9 @@ export default function App() {
             onClick={() => void refresh()}
             disabled={busy || loading}
             title="今すぐ取り直す（⌘R）"
+            aria-label="今すぐ取り直す"
           >
-            <RefreshIcon spinning={loading} />
-            <span>{loading ? "確認中" : "今すぐ確認"}</span>
+            <RefreshIcon size={14} spinning={loading} />
           </button>
         </div>
       </header>

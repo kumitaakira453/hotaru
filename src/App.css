@@ -216,16 +216,18 @@ button:disabled {
   color: var(--fg);
 }
 
+/* 隣の配色ボタンと同じ大きさに揃える。取得中も形を変えず、印だけを回す。 */
 .refresh {
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   background: var(--accent-soft);
   border: 1px solid var(--accent);
   color: var(--accent);
-  padding: 5px 11px;
-  font-size: 12px;
-  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .refresh svg.spin {
