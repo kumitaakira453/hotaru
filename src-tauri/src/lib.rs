@@ -172,39 +172,6 @@ fn order_front_regardless(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn order_front_regardless(_window: &tauri::WebviewWindow) {}
 
-/// TODO: 全画面での挙動を掴むための一時的な記録。原因が確定したら消す。
-#[cfg(target_os = "macos")]
-fn log_popover_state(window: &tauri::WebviewWindow, main_open: bool) {
-    use objc2_app_kit::NSWindow;
-
-    let Ok(ptr) = window.ns_window() else {
-        return;
-    };
-    if ptr.is_null() {
-        return;
-    }
-    let ns = unsafe { &*(ptr as *const NSWindow) };
-    let _ = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(std::env::temp_dir().join("hotaru-popover.log"))
-        .and_then(|mut f| {
-            use std::io::Write;
-            writeln!(
-                f,
-                "main_open={} behavior={:?} level={} visible={} on_active_space={} frame={:?}",
-                main_open,
-                ns.collectionBehavior(),
-                ns.level(),
-                ns.isVisible(),
-                ns.isOnActiveSpace(),
-                ns.frame(),
-            )
-        });
-}
-
-#[cfg(not(target_os = "macos"))]
-fn log_popover_state(_window: &tauri::WebviewWindow, _main_open: bool) {}
 
 /// メニューバーのアイコンを押したときの開閉。
 ///
@@ -248,7 +215,6 @@ fn toggle_popover(app: &tauri::AppHandle, rect: tauri::Rect) {
     present_over_fullscreen(&window);
     let _ = window.show();
     order_front_regardless(&window);
-    log_popover_state(&window, main_open);
     // 外側を押したら閉じる作りが焦点の変化に乗っているため、focus は残す。
     let _ = window.set_focus();
 }
