@@ -92,18 +92,19 @@ fn show_window(app: &tauri::AppHandle) {
     }
 }
 
-/// 他のアプリが全画面のときでもメニューバーの小窓が出るようにする。
+/// 他のアプリが全画面のときでもメニューバーの小窓を手前に出す。
 ///
-/// 全画面は専用のスペースになるため、標準の設定では小窓がそのスペースへ付いて
-/// 行けず、押しても何も出ないように見える。macOS 側に 2 つ伝える必要がある。
+/// 全画面は専用のスペースになるため、素直に出そうとすると 3 つとも引っかかる。
 ///
-/// - すべてのスペースに顔を出し、全画面の添え物として扱ってよいこと
-/// - メニューそのものと同じ高さに置くこと（重ねる指定だけでは全画面の下に沈む）
-///
-/// tao の `set_visible_on_all_workspaces` は前者の一部しか立てないので、
-/// ここで直に設定する。
+/// - 小窓がそのスペースへ付いて行けない。すべてのスペースに顔を出してよく、
+///   全画面の添え物として扱ってよいことを伝える
+/// - 高さが足りない。`always_on_top` が使う `NSFloatingWindowLevel`（3）は
+///   メニューバー（24）より下で、全画面の下に沈む
+/// - 前面に出す指示がアプリの起動待ちになる。`set_focus` は
+///   `activateIgnoringOtherApps` を非同期で投げるだけなので、その前に
+///   `orderFrontRegardless` で窓自体を手前へ運んでおく
 #[cfg(target_os = "macos")]
-fn float_over_fullscreen(window: &tauri::WebviewWindow) {
+fn present_over_fullscreen(window: &tauri::WebviewWindow) {
     use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
 
     /// NSPopUpMenuWindowLevel。開いたメニューと同じ高さ。
@@ -124,10 +125,11 @@ fn float_over_fullscreen(window: &tauri::WebviewWindow) {
             | NSWindowCollectionBehavior::Stationary,
     );
     ns.setLevel(POPUP_MENU_LEVEL);
+    ns.orderFrontRegardless();
 }
 
 #[cfg(not(target_os = "macos"))]
-fn float_over_fullscreen(_window: &tauri::WebviewWindow) {}
+fn present_over_fullscreen(_window: &tauri::WebviewWindow) {}
 
 /// メニューバーのアイコンを押したときの開閉。
 ///
@@ -157,8 +159,9 @@ fn toggle_popover(app: &tauri::AppHandle, rect: tauri::Rect) {
         y,
     }));
 
-    float_over_fullscreen(&window);
     let _ = window.show();
+    present_over_fullscreen(&window);
+    // 外側を押したら閉じる作りが焦点の変化に乗っているため、focus は残す。
     let _ = window.set_focus();
 }
 
