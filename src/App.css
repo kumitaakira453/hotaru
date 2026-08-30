@@ -1536,82 +1536,111 @@ button:disabled {
   flex-shrink: 0;
 }
 
-/* この枠で使ったモデルの内訳 */
+/* この枠で使ったモデルの内訳。割合は帯、数字は凡例に分ける */
 .models {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 9px 10px 8px;
+  padding: 10px 12px 9px;
+  background: var(--panel);
   border: 1px solid var(--panel-line);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 .models-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 2px;
+  gap: 8px;
 }
 
 .models-title {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--fg-dim);
 }
 
 .models-total {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--fg-faint);
   font-variant-numeric: tabular-nums;
+}
+
+.models-bar {
+  display: flex;
+  height: 7px;
+  margin: 9px 0 8px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+/* 隣り合う色が溶けないよう、下地の色で細く隔てる */
+.models-seg {
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 2px;
+}
+
+.models-seg + .models-seg {
+  border-left: 2px solid var(--panel);
+}
+
+.models-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .model-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 10.5px;
+  gap: 7px;
+  font-size: 11px;
   color: var(--fg-dim);
 }
 
+.model-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 .model-name {
-  min-width: 66px;
-  font-weight: 600;
-  color: var(--fg);
-}
-
-.model-track {
   flex: 1;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--track);
+  min-width: 0;
+  color: var(--fg);
+  white-space: nowrap;
   overflow: hidden;
-}
-
-.model-fill {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: var(--chart);
+  text-overflow: ellipsis;
 }
 
 .model-share,
 .model-tokens {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .model-share {
-  min-width: 30px;
+  min-width: 32px;
+  color: var(--fg);
+  font-weight: 600;
 }
 
 .model-tokens {
-  min-width: 42px;
+  min-width: 46px;
   color: var(--fg-faint);
 }
 
 .models-note {
-  margin-top: 3px;
-  font-size: 9.5px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--panel-line);
+  font-size: 10px;
   color: var(--fg-faint);
 }
 
