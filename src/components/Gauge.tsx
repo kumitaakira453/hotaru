@@ -33,7 +33,8 @@ function clockOf(epoch: number): string {
     d.getMonth() === tomorrow.getMonth() &&
     d.getDate() === tomorrow.getDate();
   if (isTomorrow) return `明日 ${hhmm}`;
-  return `${d.getMonth() + 1}/${d.getDate()} ${hhmm}`;
+  const wd = "日月火水木金土"[d.getDay()] ?? "";
+  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${hhmm}`;
 }
 
 function durationOf(secs: number): string {
@@ -89,6 +90,58 @@ function VerdictIcon({ warn }: { warn: boolean }) {
   );
 }
 
+/** 色が何を意味しているかを、言葉とかたちでも伝える。 */
+function levelOf(
+  used: number,
+  projected: number | null,
+): { label: string; tone: "calm" | "warm" | "hot" } {
+  if (used >= 85 || (projected != null && projected >= 100)) {
+    return { label: "警告", tone: "hot" };
+  }
+  if (used >= 55) return { label: "注意", tone: "warm" };
+  return { label: "余裕", tone: "calm" };
+}
+
+function LevelIcon({ tone }: { tone: "calm" | "warm" | "hot" }) {
+  if (tone === "hot") {
+    return (
+      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
+        <path
+          d="M8 1.8 15 14H1z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M8 6.2v3.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="8" cy="11.4" r="0.9" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (tone === "warm") {
+    return (
+      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
+        <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M8 4.6v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="8" cy="11.2" r="0.9" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
+      <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M5.2 8.2 7.2 10.2 10.9 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 type Props = {
   label: string;
   /** 輪の中に出す短い呼び名。 */
@@ -112,9 +165,10 @@ export function Gauge({ label, short, hint, tone, window: w }: Props) {
   const offset = CIRCUMFERENCE * (1 - shown / 100);
   const elapsedPct = w?.elapsed_ratio != null ? w.elapsed_ratio * 100 : null;
   const projected = w?.projected_at_reset ?? null;
-  // 着地の見込みまで含めて危うさを測る。輪も帯も数字も同じ色で通し、
-  // 「今は少ないが、このままだと危ない」を一目で分かるようにする。
-  const color = hueFor(Math.max(target, projected ?? 0), tone);
+  // 普段は今どれだけ使ったかで色を決める。使い切る見込みのときだけ、
+  // 輪も帯も数字もまとめて警告色に振って「このままだと危ない」を伝える。
+  const color =
+    projected != null && projected >= 100 ? "var(--hot)" : hueFor(target, tone);
   // 見込みの弧は現在値より先の部分だけを淡く重ねる。
   const projectedCapped = projected != null ? Math.min(projected, 100) : null;
   const projectedOffset =
@@ -177,6 +231,12 @@ export function Gauge({ label, short, hint, tone, window: w }: Props) {
       <div className="gauge-info">
         <div className="gauge-head">
           <span className="gauge-label">{label}</span>
+          {w && (
+            <span className={`level level-${levelOf(w.used_percentage, projected).tone}`}>
+              <LevelIcon tone={levelOf(w.used_percentage, projected).tone} />
+              {levelOf(w.used_percentage, projected).label}
+            </span>
+          )}
           <span className="gauge-hint">{hint}</span>
         </div>
 

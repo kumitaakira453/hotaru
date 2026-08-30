@@ -139,26 +139,56 @@ body {
   gap: 8px;
 }
 
-.theme-switch {
+.theme-btn {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
   border: 1px solid var(--panel-line);
-  border-radius: 7px;
-  overflow: hidden;
+  color: var(--fg-dim);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.theme-switch button {
+.theme-btn:hover {
+  background: var(--track);
+  color: var(--fg);
+}
+
+button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 0;
+  border-radius: 0;
   color: var(--fg-faint);
-  font-size: 10.5px;
-  padding: 3px 7px;
+  padding: 4px 8px;
   cursor: pointer;
+}
+
+.theme-switch button:hover:not(.on) {
+  color: var(--fg-dim);
 }
 
 .theme-switch button.on {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+}
+
+button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--fg-faint);
+  padding: 4px 8px;
+  cursor: pointer;
 }
 
 button {
@@ -437,8 +467,6 @@ button:disabled {
   align-items: flex-end;
   gap: 2px;
   height: 78px;
-  /* 選んだ日の印を置く余地 */
-  margin-bottom: 7px;
 }
 
 .bar-slot {
@@ -465,16 +493,8 @@ button:disabled {
   background: var(--chart);
 }
 
-/* 選んだ日は棒の下に印を置く。山の濃淡とも枠とも混ざらない */
-.bar-slot.active::after {
-  content: "";
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  bottom: -5px;
-  height: 2.5px;
-  border-radius: 2px;
-  background: var(--accent);
+.bar-slot.active .bar {
+  background: var(--chart);
 }
 
 .chart-axis {
@@ -1194,10 +1214,6 @@ button:disabled {
   pointer-events: none;
 }
 
-.bar-slot.spike .bar {
-  background: var(--chart);
-}
-
 .day-card {
   margin-top: 10px;
   padding: 9px 10px;
@@ -1251,11 +1267,6 @@ button:disabled {
 
 .day-compare .down {
   color: var(--fg-dim);
-}
-
-.day-spike {
-  color: var(--hot);
-  font-weight: 600;
 }
 
 .day-stats {
@@ -1701,4 +1712,56 @@ button:disabled {
   border: 1px solid var(--panel-line);
   border-radius: 20px;
   padding: 0 5px;
+}
+
+/* 取り直している間は、高さを保ったまま明かりだけが左から右へ渡る */
+.chart.loading .bar {
+  background: var(--chart-soft);
+  animation: barGlow 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 40ms);
+}
+
+@keyframes barGlow {
+  0%,
+  100% {
+    opacity: 0.22;
+  }
+  45% {
+    opacity: 0.8;
+  }
+}
+
+.chart.loading .bar-slot {
+  pointer-events: none;
+}
+
+.chart.loading .chart-average {
+  opacity: 0.4;
+}
+
+/* 色が何を意味しているかを、言葉とかたちでも示す */
+.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px 1px 5px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--tone) 42%, transparent);
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
+  white-space: nowrap;
+}
+
+.level-calm {
+  --tone: var(--calm);
+}
+
+.level-warm {
+  --tone: var(--warm);
+}
+
+.level-hot {
+  --tone: var(--hot);
 }

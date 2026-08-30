@@ -26,7 +26,15 @@ function durationOf(secs: number): string {
 
 function clockOf(epoch: number): string {
   const d = new Date(epoch * 1000);
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const now = new Date();
+  const hhmm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) return hhmm;
+  const wd = "日月火水木金土"[d.getDay()] ?? "";
+  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${hhmm}`;
 }
 
 function clockNow(): string {

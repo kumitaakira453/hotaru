@@ -9,8 +9,6 @@ const PERIODS: { days: number; label: string }[] = [
   { days: 0, label: "全期間" },
 ];
 
-/** 平均のこの倍を超えた日は、突出した日として色を変える。 */
-const SPIKE_RATIO = 1.5;
 /** 棒をなぞっている間に何度も集計しないよう、落ち着くまで待つ。 */
 const HOVER_SETTLE_MS = 180;
 
@@ -47,9 +45,11 @@ type Props = {
   history: UsageHistory | null;
   period: number;
   onPeriodChange: (days: number) => void;
+  /** 履歴そのものを取り直している最中か。 */
+  loading: boolean;
 };
 
-export function UsageChart({ history, period, onPeriodChange }: Props) {
+export function UsageChart({ history, period, onPeriodChange, loading }: Props) {
   // 最後に指した日を覚えておく。離れても見ていた日のままにする。
   const [picked, setPicked] = useState<string | null>(null);
   // どの日の集計かを一緒に持ち、選んでいる日と一致した時だけ使う。
@@ -120,7 +120,6 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
 
   const vsAverage = average_tokens > 0 ? (shown.tokens / average_tokens - 1) * 100 : 0;
   const vsPrev = prev && prev.tokens > 0 ? (shown.tokens / prev.tokens - 1) * 100 : null;
-  const spikes = days.filter((d) => average_tokens > 0 && d.tokens > average_tokens * SPIKE_RATIO);
 
   // 表示している日の集計だけを使う。揃っていなければ数字を出さない。
   const fresh = hourData?.date === shown.date ? hourData.hours : null;
@@ -132,12 +131,25 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
     <section className="panel">
       <div className="panel-head">
         <h2 className="panel-title">使用履歴</h2>
-        <span className="panel-note">1 日あたり平均 {shortTokens(average_tokens)}</span>
+        <span className="panel-note">
+          {loading ? (
+            <>
+              <span className="hours-spinner" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+              読み込み中
+            </>
+          ) : (
+            `1 日あたり平均 ${shortTokens(average_tokens)}`
+          )}
+        </span>
       </div>
 
       {selector}
 
-      <div className="chart">
+      <div className={"chart" + (loading ? " loading" : "")}>
         {/* 平均の高さに線を置くと、どの日が跳ねているかがそのまま見える */}
         {peak_tokens > 0 && average_tokens > 0 && (
           <div
@@ -145,14 +157,14 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
             style={{ bottom: `${(average_tokens / peak_tokens) * 100}%` }}
           />
         )}
-        {days.map((d) => {
+        {days.map((d, i) => {
           const ratio = peak_tokens > 0 ? d.tokens / peak_tokens : 0;
-          const spike = average_tokens > 0 && d.tokens > average_tokens * SPIKE_RATIO;
           return (
             <button
               key={d.date}
+              style={{ ["--i" as string]: i }}
               className={
-                "bar-slot" + (d.date === shown.date ? " active" : "") + (spike ? " spike" : "")
+                "bar-slot" + (d.date === shown.date ? " active" : "")
               }
               onMouseEnter={() => setPicked(d.date)}
               onFocus={() => setPicked(d.date)}
@@ -166,10 +178,7 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
 
       <div className="chart-axis">
         <span>{shortDate(days[0].date)}</span>
-        <span className="muted">
-          破線は平均
-          {spikes.length > 0 ? ` / 大きく超えた日 ${spikes.length}` : ""}
-        </span>
+        <span className="muted">破線は平均</span>
         <span>{shortDate(days[days.length - 1].date)}</span>
       </div>
 
@@ -193,9 +202,6 @@ export function UsageChart({ history, period, onPeriodChange }: Props) {
           <span className={vsAverage >= 0 ? "up" : "down"}>平均比 {signed(vsAverage)}</span>
           {vsPrev !== null && (
             <span className={vsPrev >= 0 ? "up" : "down"}>前日比 {signed(vsPrev)}</span>
-          )}
-          {average_tokens > 0 && shown.tokens > average_tokens * SPIKE_RATIO && (
-            <span className="day-spike">よく使った日</span>
           )}
         </div>
 

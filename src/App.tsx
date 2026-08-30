@@ -60,6 +60,32 @@ function formatUptime(secs: number): string {
   return `${m}分`;
 }
 
+function SunIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+      <circle cx="8" cy="8" r="3.1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6" />
+        <path d="M3.4 3.4 4.5 4.5M11.5 11.5l1.1 1.1M12.6 3.4 11.5 4.5M4.5 11.5l-1.1 1.1" />
+      </g>
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+      <path
+        d="M13 9.6A5.8 5.8 0 0 1 6.4 3a5.9 5.9 0 1 0 6.6 6.6z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** 更新の確認がどこまで進んだかを言葉にする。 */
 function updateLabel(status: string): string {
   switch (status) {
@@ -254,18 +280,15 @@ export default function App() {
         </div>
 
         <div className="head-actions">
-          <div className="theme-switch" role="group" aria-label="配色">
-            {(["light", "dark"] as const).map((t) => (
-              <button
-                key={t}
-                className={theme === t ? "on" : ""}
-                onClick={() => setTheme(t)}
-                title={t === "light" ? "明るい配色" : "暗い配色"}
-              >
-                {t === "light" ? "明" : "暗"}
-              </button>
-            ))}
-          </div>
+          {/* 押すともう片方になる。出ているのは切り替え先の姿。 */}
+          <button
+            className="theme-btn"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "明るい配色にする" : "暗い配色にする"}
+            aria-label={theme === "dark" ? "明るい配色にする" : "暗い配色にする"}
+          >
+            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+          </button>
 
           <button
             className="refresh"
@@ -366,7 +389,12 @@ export default function App() {
         )}
 
         {tab === "history" && (
-          <UsageChart history={history} period={period} onPeriodChange={setPeriod} />
+          <UsageChart
+            history={history}
+            period={period}
+            onPeriodChange={setPeriod}
+            loading={loading}
+          />
         )}
 
         {tab === "procs" && (
