@@ -85,12 +85,31 @@ async fn wire_statusline() -> Result<String, String> {
 
 /// ウィンドウを前面に出す。tray やメニューから呼ぶため、重い処理はしない。
 fn show_window(app: &tauri::AppHandle) {
+    set_dock_visible(app, true);
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
 }
+
+/// Dock にアイコンを出すかどうかを切り替える。
+///
+/// Dock に出る「通常のアプリ」は、前面に出ないまま他アプリの全画面スペースへ
+/// 窓を出せない。メニューバーに常駐するアプリが揃って Dock を持たないのは
+/// この制約があるため。小窓だけを使っている間は Dock から降り、
+/// ちゃんとした窓を開いている間だけ Dock に戻る。
+#[cfg(target_os = "macos")]
+fn set_dock_visible(app: &tauri::AppHandle, visible: bool) {
+    let _ = app.set_activation_policy(if visible {
+        tauri::ActivationPolicy::Regular
+    } else {
+        tauri::ActivationPolicy::Accessory
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_dock_visible(_app: &tauri::AppHandle, _visible: bool) {}
 
 /// 他のアプリが全画面のときでもメニューバーの小窓を手前に出す。
 ///
@@ -118,18 +137,74 @@ fn present_over_fullscreen(window: &tauri::WebviewWindow) {
     }
     // tauri が返す生ポインタは、この窓が生きている間だけ有効。
     let ns = unsafe { &*(ptr as *const NSWindow) };
+    let before = ns.collectionBehavior();
     ns.setCollectionBehavior(
-        ns.collectionBehavior()
+        before
             | NSWindowCollectionBehavior::CanJoinAllSpaces
             | NSWindowCollectionBehavior::FullScreenAuxiliary
             | NSWindowCollectionBehavior::Stationary,
     );
     ns.setLevel(POPUP_MENU_LEVEL);
+
     ns.orderFrontRegardless();
 }
 
 #[cfg(not(target_os = "macos"))]
 fn present_over_fullscreen(_window: &tauri::WebviewWindow) {}
+
+/// アプリが前面でなくても窓だけを手前へ運ぶ。
+///
+/// `set_focus` は `activateIgnoringOtherApps` を非同期で投げるだけなので、
+/// その場では手前に来ない。出した直後にこれを呼んで空白の間をなくす。
+#[cfg(target_os = "macos")]
+fn order_front_regardless(window: &tauri::WebviewWindow) {
+    use objc2_app_kit::NSWindow;
+
+    let Ok(ptr) = window.ns_window() else {
+        return;
+    };
+    if ptr.is_null() {
+        return;
+    }
+    unsafe { &*(ptr as *const NSWindow) }.orderFrontRegardless();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn order_front_regardless(_window: &tauri::WebviewWindow) {}
+
+/// TODO: 全画面での挙動を掴むための一時的な記録。原因が確定したら消す。
+#[cfg(target_os = "macos")]
+fn log_popover_state(window: &tauri::WebviewWindow, main_open: bool) {
+    use objc2_app_kit::NSWindow;
+
+    let Ok(ptr) = window.ns_window() else {
+        return;
+    };
+    if ptr.is_null() {
+        return;
+    }
+    let ns = unsafe { &*(ptr as *const NSWindow) };
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(std::env::temp_dir().join("hotaru-popover.log"))
+        .and_then(|mut f| {
+            use std::io::Write;
+            writeln!(
+                f,
+                "main_open={} behavior={:?} level={} visible={} on_active_space={} frame={:?}",
+                main_open,
+                ns.collectionBehavior(),
+                ns.level(),
+                ns.isVisible(),
+                ns.isOnActiveSpace(),
+                ns.frame(),
+            )
+        });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn log_popover_state(_window: &tauri::WebviewWindow, _main_open: bool) {}
 
 /// メニューバーのアイコンを押したときの開閉。
 ///
@@ -159,8 +234,21 @@ fn toggle_popover(app: &tauri::AppHandle, rect: tauri::Rect) {
         y,
     }));
 
-    let _ = window.show();
+    // ちゃんとした窓を開いていないなら Dock から降りる。全画面のスペースへ
+    // 出られるかどうかがここで決まるので、窓を出す前に済ませる。
+    let main_open = app
+        .get_webview_window(MAIN_WINDOW)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false);
+    if !main_open {
+        set_dock_visible(app, false);
+    }
+
+    // スペースへの割り当ては窓を出す時に決まる。出してから変えても移らない。
     present_over_fullscreen(&window);
+    let _ = window.show();
+    order_front_regardless(&window);
+    log_popover_state(&window, main_open);
     // 外側を押したら閉じる作りが焦点の変化に乗っているため、focus は残す。
     let _ = window.set_focus();
 }
@@ -268,6 +356,9 @@ pub fn run() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 let _ = window.hide();
+                if window.label() == MAIN_WINDOW {
+                    set_dock_visible(window.app_handle(), false);
+                }
             }
             // 小窓は他所を触ったらしまう。
             tauri::WindowEvent::Focused(false) if window.label() == POPOVER_WINDOW => {
