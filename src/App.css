@@ -373,25 +373,35 @@ button:disabled {
 .gauge-center {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
+/* 数字そのものを輪の中心に置く。単位を幅に数えると桁が左へ寄る */
 .gauge-pct {
-  font-size: 30px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
   font-weight: 300;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 .gauge-unit {
-  font-size: 14px;
+  position: absolute;
+  left: 100%;
+  bottom: 0.1em;
   margin-left: 1px;
-  opacity: 0.8;
+  font-size: 13px;
+  opacity: 0.75;
 }
 
 .gauge-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   font-size: 24px;
   color: var(--fg-faint);
 }
@@ -1004,17 +1014,18 @@ button:disabled {
   transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.gauge-center {
-  flex-direction: column;
-  gap: 0;
-}
-
+/* 数字の位置を動かさずに、その下へ添える */
 .gauge-caption {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%);
+  margin-top: 19px;
   font-size: 10px;
   color: var(--fg-dim);
-  margin-top: -2px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .gauge-note {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { LimitWindow } from "../types";
 
 const SIZE = 124;
-const STROKE = 10;
+const STROKE = 16;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -206,6 +206,7 @@ export function Gauge({ label, short, hint, tone, window: w }: Props) {
         <div className="gauge-center">
           {w ? (
             <>
+              {/* 単位は幅に数えない置き方にして、桁が輪の中心からずれないようにする */}
               <span className="gauge-pct" style={{ color }}>
                 {Math.round(w.used_percentage)}
                 <span className="gauge-unit">%</span>
