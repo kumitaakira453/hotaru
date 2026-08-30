@@ -202,19 +202,16 @@ export function Gauge({ label, hint, tone, window: w }: Props) {
           )}
         </svg>
         {/*
-          単位は数字の下に置く。横に並べると、桁を中央に寄せれば単位が右へはみ出し、
-          文字列ごと中央に寄せれば桁が左へずれる。縦に積めば両方が同じ中心軸に乗る。
+          単位は値の一部として数字の横に置き、文字列ごと中央に寄せる。
+          単位を極端に小さくすると目が値の一部と見なさず、桁だけが左に寄って
+          見えるため、桁と地続きに読める大きさにしてある。
         */}
         <div className="gauge-center">
           {w ? (
-            <>
-              <span className="gauge-pct" style={{ color }}>
-                {Math.round(w.used_percentage)}
-              </span>
-              <span className="gauge-unit" style={{ color }}>
-                %
-              </span>
-            </>
+            <span className="gauge-pct" style={{ color }}>
+              {Math.round(w.used_percentage)}
+              <span className="gauge-unit">%</span>
+            </span>
           ) : (
             <span className="gauge-empty">—</span>
           )}
