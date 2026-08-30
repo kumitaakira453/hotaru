@@ -188,7 +188,11 @@ export function DevProcPanel({ list, busy, vanishing, stopping, onKill }: Props)
     const busyHere = r.items.some((p) => stopping.has(p.pid));
 
     return (
-      <li key={r.key} className={"dev-row" + (gone ? " vanishing" : "")}>
+      <li
+        key={r.key}
+        className={"dev-row has-tip" + (gone ? " vanishing" : "")}
+        data-tip={r.sample.cmd}
+      >
         <div
           className={
             "dev" +

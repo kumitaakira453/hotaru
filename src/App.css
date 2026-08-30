@@ -4,6 +4,7 @@
   --bg-deep: #e9edf3;
   --panel: #ffffff;
   --panel-line: rgba(18, 24, 34, 0.09);
+  --tip: #ffffff;
   --fg: #171b22;
   --fg-dim: #5d6675;
   --fg-faint: #8b94a3;
@@ -26,6 +27,7 @@
     --bg-deep: #080b11;
     --panel: rgba(255, 255, 255, 0.045);
     --panel-line: rgba(255, 255, 255, 0.085);
+    --tip: #1c232e;
     --fg: #e7edf6;
     --fg-dim: #94a1b5;
     --fg-faint: #6c7788;
@@ -48,6 +50,7 @@
   --bg-deep: #080b11;
   --panel: rgba(255, 255, 255, 0.045);
   --panel-line: rgba(255, 255, 255, 0.085);
+  --tip: #1c232e;
   --fg: #e7edf6;
   --fg-dim: #94a1b5;
   --fg-faint: #6c7788;
@@ -82,6 +85,15 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
+  user-select: text;
+}
+
+/* 掴んで窓を動かす帯と、押すものは選択の対象にしない */
+.head,
+button,
+.tabs,
+.subtabs,
+.groupby {
   user-select: none;
 }
 
@@ -1809,4 +1821,39 @@ button:disabled {
 .row.stopping .row-reason,
 .dev.stopping .dev-note {
   color: var(--fg-faint);
+}
+
+/* 省略された文字の続きを見せる。native の title は webview で出ないため自前で持つ。
+   .dev は帯を切るため overflow を持つので、吹き出しは切られない外側に付ける。 */
+.has-tip {
+  position: relative;
+}
+
+.has-tip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 6px;
+  top: calc(100% - 3px);
+  z-index: 20;
+  max-width: calc(100% - 12px);
+  padding: 5px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 7px;
+  background: var(--tip);
+  color: var(--fg-dim);
+  box-shadow: var(--shadow);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 110ms ease;
+}
+
+/* すぐには出さない。なぞって通り過ぎるだけでは邪魔をしない */
+.has-tip[data-tip]:hover::after {
+  opacity: 1;
+  transition-delay: 450ms;
 }

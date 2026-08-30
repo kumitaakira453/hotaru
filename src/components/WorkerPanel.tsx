@@ -186,11 +186,9 @@ export function WorkerPanel({ list }: Props) {
                       {open && (
                         <ul className="child-list">
                           {w.children.map((c) => (
-                            <li key={c.pid} className="child">
+                            <li key={c.pid} className="child has-tip" data-tip={c.cmd}>
                               <span className="child-kind">{c.kind}</span>
-                              <span className="child-name" title={c.cmd}>
-                                {c.name}
-                              </span>
+                              <span className="child-name">{c.name}</span>
                               <span className="child-meta">
                                 PID {c.pid} · {c.rss_mb}MB
                               </span>
