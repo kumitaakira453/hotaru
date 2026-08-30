@@ -17,10 +17,29 @@ export type LimitWindow = {
   provisional: boolean;
 };
 
+/** モデルごとに分かれた週次の枠。 */
+export type ScopedLimit = {
+  label: string;
+  percent: number;
+  resets_at: number | null;
+};
+
+/** 上限に達したあとに使える追加分。 */
+export type ExtraUsage = {
+  used_credits: number;
+  monthly_limit: number;
+  currency: string;
+};
+
 export type RateLimits = {
   five_hour: LimitWindow | null;
   seven_day: LimitWindow | null;
-  spend_limit: LimitWindow | null;
+  /** 支払い枠の使用率。上限が設定されているときだけ入る。 */
+  spend_percentage: number | null;
+  scoped: ScopedLimit[];
+  extra: ExtraUsage | null;
+  /** "live" は取りに行った結果、"cache" は statusline の書き置き。 */
+  source: "live" | "cache";
   captured_at: number | null;
   age_secs: number | null;
   available: boolean;

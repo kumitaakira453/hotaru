@@ -352,9 +352,35 @@ export default function App() {
               window={limits?.seven_day ?? null}
             />
 
-            {limits?.spend_limit && (
+            {/* モデルごとに分かれた週次の枠。プランによっては届かない */}
+            {(limits?.scoped.length ?? 0) > 0 && (
+              <div className="scoped">
+                {limits!.scoped.map((s) => (
+                  <div key={s.label} className="scoped-row">
+                    <span className="scoped-name">{s.label}</span>
+                    <span className="scoped-track">
+                      <span
+                        className="scoped-fill"
+                        style={{ width: `${Math.min(s.percent, 100)}%` }}
+                      />
+                    </span>
+                    <span className="scoped-num">{Math.round(s.percent)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {limits?.spend_percentage != null && (
+              <div className="spend">利用枠 {Math.round(limits.spend_percentage)}% を使用</div>
+            )}
+
+            {limits?.extra && (
               <div className="spend">
-                利用枠 {Math.round(limits.spend_limit.used_percentage)}% を使用
+                追加利用枠 {limits.extra.used_credits.toFixed(2)}
+                {limits.extra.monthly_limit > 0
+                  ? ` / ${limits.extra.monthly_limit.toFixed(2)}`
+                  : ""}{" "}
+                {limits.extra.currency}
               </div>
             )}
 
@@ -364,11 +390,13 @@ export default function App() {
                 {limits.statusline_wired ? "セッションが動くと値が入ります" : "使用状況は未取得"}
               </div>
             )}
-            {limits?.available && (limits.age_secs ?? 0) > 300 && (
-              <div className="freshness stale-note">
-                この値は {formatAge(limits.age_secs)}のものです
-              </div>
-            )}
+            {limits?.available &&
+              limits.source === "cache" &&
+              (limits.age_secs ?? 0) > 300 && (
+                <div className="freshness stale-note" title="いま取りに行けなかったため、Claude Code の書き置きを表示しています">
+                  Claude Code が {formatAge(limits.age_secs)}に記録した値です
+                </div>
+              )}
           </>
         )}
 

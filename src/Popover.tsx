@@ -168,12 +168,16 @@ export default function Popover() {
       <section className="pop-section">
         <LimitRow name="5 時間枠" tone="day" w={limits?.five_hour ?? null} />
         <LimitRow name="7 日枠" tone="week" w={limits?.seven_day ?? null} />
-        {limits?.available && (limits.age_secs ?? 0) > 300 && (
-          <div className="pop-age" title="Claude Code のセッションが動いたときに書き出されます">
+        {/* 取りに行けたときは古さの話をしない。書き置きへ戻ったときだけ断る */}
+        {limits?.available && limits.source === "cache" && (limits.age_secs ?? 0) > 300 && (
+          <div
+            className="pop-age"
+            title="いま取りに行けなかったため、Claude Code の書き置きを表示しています"
+          >
             Claude Code が {ageOf(limits.age_secs)}に記録した値です
           </div>
         )}
-        {limits && !limits.statusline_wired && (
+        {limits && limits.source === "cache" && !limits.statusline_wired && (
           <div className="pop-warn">statusline が未設定です</div>
         )}
       </section>

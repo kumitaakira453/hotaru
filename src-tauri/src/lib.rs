@@ -2,6 +2,7 @@ mod history;
 mod procs;
 mod rate_limits;
 mod tray_icon;
+mod usage_api;
 mod workers;
 
 use std::time::Duration;

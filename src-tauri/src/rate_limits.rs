@@ -1,6 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::usage_api::{self, ExtraUsage, ScopedLimit};
+
+/// 取りに行った結果を短時間だけ使い回す。窓と小窓と定期取得が
+/// 同じ間隔で呼ぶため、そのたびに叩くと無駄に多くなる。
+const MEMO_SECS: i64 = 10;
+static MEMO: Mutex<Option<(i64, RateLimits)>> = Mutex::new(None);
 
 /// 5 時間枠の長さ。
 const FIVE_HOUR: i64 = 5 * 3600;
@@ -84,12 +92,19 @@ pub struct Window {
 pub struct RateLimits {
     pub five_hour: Option<Window>,
     pub seven_day: Option<Window>,
-    pub spend_limit: Option<Window>,
-    /// キャッシュが書かれた時刻。
+    /// 支払い枠の使用率。上限が設定されているときだけ入る。
+    pub spend_percentage: Option<f64>,
+    /// モデルごとに分かれた週次の枠。能動取得でだけ得られる。
+    pub scoped: Vec<ScopedLimit>,
+    /// 上限に達したあとに使える追加分。
+    pub extra: Option<ExtraUsage>,
+    /// どこから取れた値か。"live" は取りに行った結果、"cache" は statusline の書き置き。
+    pub source: &'static str,
+    /// キャッシュが書かれた時刻。source が "cache" のときだけ意味がある。
     pub captured_at: Option<i64>,
     /// キャッシュの古さ（秒）。
     pub age_secs: Option<i64>,
-    /// キャッシュファイルが読めたか。
+    /// 値が得られたか。
     pub available: bool,
     /// statusline に書き出しが仕込まれているか。false なら設定を促す。
     pub statusline_wired: bool,
@@ -100,7 +115,10 @@ impl RateLimits {
         Self {
             five_hour: None,
             seven_day: None,
-            spend_limit: None,
+            spend_percentage: None,
+            scoped: Vec::new(),
+            extra: None,
+            source: "cache",
             captured_at: None,
             age_secs: None,
             available: false,
@@ -176,9 +194,54 @@ fn is_wired() -> bool {
         .unwrap_or(false)
 }
 
-/// キャッシュを読む。ファイルが無い場合や壊れている場合も
-/// エラーにせず available=false で返し、UI 側で理由を出せるようにする。
+/// 使用状況を返す。
+///
+/// まず取りに行き、届かなければ statusline の書き置きへ戻す。取りに行く経路は
+/// 文書化されていないため、いつ壊れても表示が止まらないようにしてある。
 pub fn read() -> RateLimits {
+    let now = now_secs();
+    {
+        let memo = MEMO.lock().unwrap();
+        if let Some((at, value)) = memo.as_ref() {
+            if now - at < MEMO_SECS {
+                return value.clone();
+            }
+        }
+    }
+
+    let value = read_live().unwrap_or_else(read_cache);
+    *MEMO.lock().unwrap() = Some((now, value.clone()));
+    value
+}
+
+/// 取りに行った結果を、キャッシュと同じ形へ組み替える。
+fn read_live() -> Option<RateLimits> {
+    let live = usage_api::fetch()?;
+    let now = now_secs();
+    let as_raw = |v: Option<(f64, i64)>| {
+        v.map(|(used, resets_at)| RawWindow {
+            used_percentage: Some(used),
+            resets_at: Some(resets_at),
+        })
+    };
+
+    Some(RateLimits {
+        five_hour: to_window(as_raw(live.five_hour), now, Some(FIVE_HOUR)),
+        seven_day: to_window(as_raw(live.seven_day), now, Some(SEVEN_DAY)),
+        spend_percentage: live.spend_percentage,
+        scoped: live.scoped,
+        extra: live.extra,
+        source: "live",
+        captured_at: Some(now),
+        age_secs: Some(0),
+        available: true,
+        statusline_wired: is_wired(),
+    })
+}
+
+/// statusline が書き置いたキャッシュを読む。ファイルが無い場合や壊れている場合も
+/// エラーにせず available=false で返し、UI 側で理由を出せるようにする。
+fn read_cache() -> RateLimits {
     let wired = is_wired();
     let text = match std::fs::read_to_string(cache_path()) {
         Ok(t) => t,
@@ -203,7 +266,10 @@ pub fn read() -> RateLimits {
     RateLimits {
         five_hour: five,
         seven_day: seven,
-        spend_limit: spend,
+        spend_percentage: spend.map(|w| w.used_percentage),
+        scoped: Vec::new(),
+        extra: None,
+        source: "cache",
         captured_at: raw.captured_at,
         age_secs: raw.captured_at.map(|c| (now - c).max(0)),
         available: true,
