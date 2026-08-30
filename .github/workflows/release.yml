@@ -1,0 +1,68 @@
+name: Release
+
+# v* タグを push すると macOS (Apple Silicon) をビルドし、GitHub Releases に
+# 成果物 (.dmg と自動更新用の .app.tar.gz + latest.json) を添付する。
+# ビルド短縮のため対象は aarch64 macOS 単体（他 OS が要る時は matrix を追加）。
+on:
+  push:
+    tags:
+      - "v*"
+  # 手動実行も可能（タグ名を入力してドラフトを作る）
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "リリースタグ (例: v0.1.0)"
+        required: true
+
+# 同一 ref で新しい実行が始まったら、進行中の古い実行はキャンセル（無駄な分を削る）
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          # リリース間でキャッシュを共有し、失敗時も保存して次回に活かす
+          shared-key: "release"
+          cache-on-failure: true
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build & release (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 自動更新の署名（未設定だと updater 用アーティファクトが作れない）
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # タグ push 時は github.ref_name、手動実行時は入力タグ
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: "hotaru ${{ github.event.inputs.tag || github.ref_name }}"
+          releaseBody: "macOS (Apple Silicon) 用インストーラ (.dmg) を下記 Assets からダウンロードしてください。"
+          releaseDraft: true
+          prerelease: false
+          # updater 用の latest.json を生成して Release に添付
+          includeUpdaterJson: true
+          args: "--target aarch64-apple-darwin"

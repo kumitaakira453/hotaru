@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "hotaru: アプリの動作に必要な権限",
+  "windows": [
+    "main",
+    "popover"
+  ],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:default",
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

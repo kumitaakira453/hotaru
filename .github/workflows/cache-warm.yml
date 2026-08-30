@@ -1,0 +1,50 @@
+name: Warm Rust cache
+
+# GitHub Actions のキャッシュは ref スコープ。リリースはタグ push でしか走らず、
+# タグ同士・タグ↔既定ブランチでキャッシュを共有できないため、毎回フルコンパイル
+# になっていた。ここで既定ブランチ(main)にキャッシュを保存しておくと、タグの
+# リリースビルドがそれを復元でき、依存の再コンパイルを飛ばせる。
+#
+# 依存が変わった時（Cargo.lock / Cargo.toml）と本ファイル更新時だけ実行する。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/Cargo.lock"
+      - "src-tauri/Cargo.toml"
+      - ".github/workflows/cache-warm.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: cache-warm
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          # リリースと同じ shared-key にすることでキャッシュを共有する
+          shared-key: "release"
+          cache-on-failure: true
+
+      # generate_context! が frontendDist を要求するため、プレースホルダを置く。
+      # 目的は依存クレートのコンパイル結果をキャッシュに載せることなので中身は不問。
+      - name: Placeholder frontend dist
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><meta charset="utf-8"><title>warm</title>' > dist/index.html
+
+      - name: Build (warm dependency cache)
+        working-directory: src-tauri
+        run: cargo build --release --target aarch64-apple-darwin
