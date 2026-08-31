@@ -1482,14 +1482,22 @@ button:disabled {
   grid-template-rows: 1fr;
 }
 
+.dev-children-wrap.open > .dev-children {
+  padding-top: 3px;
+  padding-bottom: 5px;
+}
+
 .dev-children-wrap > ul {
   overflow: hidden;
 }
 
+/* 縦の余白は開いたときだけ持たせる。畳んだ状態で残すと、中身が空でも
+   パディングのぶん箱に高さが出て、隠れている行に当たり判定が生きてしまう。 */
 .dev-children {
   list-style: none;
   margin: 0 0 0 14px;
-  padding: 3px 0 5px 8px;
+  padding: 0 0 0 8px;
+  transition: padding 220ms cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   gap: 1px;
