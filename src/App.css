@@ -1926,7 +1926,9 @@ button:disabled {
   color: var(--fg-faint);
 }
 
-/* 省略された文字の続きを見せる。native の title は webview で出ないため自前で持つ。
+/* 省略された文字の続きを見せる。title 属性でも出せるが、出るまでが遅く
+   配色にも合わせられないため自前で持つ。同じ内容に title を併記すると
+   ツールチップが二重に出るので、こちらを使う要素からは title を外す。
    .dev は帯を切るため overflow を持つので、吹き出しは切られない外側に付ける。 */
 .has-tip {
   position: relative;

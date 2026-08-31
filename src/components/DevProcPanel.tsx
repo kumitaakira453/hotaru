@@ -201,7 +201,6 @@ export function DevProcPanel({ list, busy, vanishing, stopping, onKill }: Props)
             (many ? " expandable" : "")
           }
           style={{ ["--share" as string]: `${(r.mb / maxMb) * 100}%` }}
-          title={r.sample.cmd}
           onClick={
             many
               ? (e) => {
