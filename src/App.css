@@ -1128,15 +1128,17 @@ button:disabled {
   transition: opacity 0.4s ease, transform 0.4s ease, filter 0.4s ease;
 }
 
+/* 占有の大きさは行の下端に細く敷く。全高に敷くと文字の途中で断ち切られ、
+   選択の消し残しのように見えてしまう。 */
 .dev::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 0;
   bottom: 0;
+  height: 2px;
   width: var(--share, 0%);
-  background: var(--chart-soft);
-  opacity: 0.55;
+  background: var(--chart);
+  opacity: 0.45;
   pointer-events: none;
 }
 
@@ -1148,8 +1150,18 @@ button:disabled {
   background: var(--track);
 }
 
-.dev.stale {
-  box-shadow: inset 2px 0 0 var(--hot);
+/* 片付け候補の印。inset の影は角丸に沿って三日月形に曲がるため、
+   上下を浮かせた棒として置く。 */
+.dev.stale::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2.5px;
+  border-radius: 0 2px 2px 0;
+  background: var(--hot);
+  pointer-events: none;
 }
 
 .dev.vanishing {
@@ -1159,6 +1171,9 @@ button:disabled {
 }
 
 .dev input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
   accent-color: var(--accent);
   flex-shrink: 0;
 }
