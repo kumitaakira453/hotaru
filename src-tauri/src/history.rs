@@ -1,5 +1,8 @@
+use chrono::NaiveDate;
 use serde::Serialize;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 fn home() -> PathBuf {
     std::env::var_os("HOME")
@@ -58,7 +61,7 @@ pub fn read(days: usize) -> UsageHistory {
     };
 
     // 日付をキーにして、活動量とトークン数を突き合わせる。
-    let mut by_date: std::collections::BTreeMap<String, DayUsage> = Default::default();
+    let mut by_date: BTreeMap<String, DayUsage> = Default::default();
 
     if let Some(list) = v.get("dailyActivity").and_then(|x| x.as_array()) {
         for item in list {
@@ -92,23 +95,54 @@ pub fn read(days: usize) -> UsageHistory {
         }
     }
 
-    // 日次集計は翌日に回るため、今日ぶんは会話ログから補う。
-    let today = chrono::Local::now().date_naive().format("%Y-%m-%d").to_string();
-    if !by_date.contains_key(&today) {
-        if let Some(d) = count_from_logs(&today) {
-            by_date.insert(today, d);
-        }
+    // 日次集計は lastComputedDate の日までしか載らない。それより後は会話ログから補う。
+    let today = chrono::Local::now().date_naive();
+    let computed_until = v
+        .get("lastComputedDate")
+        .and_then(|x| x.as_str())
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .or_else(|| {
+            by_date
+                .keys()
+                .next_back()
+                .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        });
+    let window_start = (days > 0).then(|| today - chrono::Days::new(days as u64 - 1));
+    let fill_from = match (computed_until.and_then(|d| d.succ_opt()), window_start) {
+        (Some(a), Some(b)) => a.max(b),
+        (Some(a), None) => a,
+        (None, Some(b)) => b,
+        (None, None) => today,
+    };
+    for d in counts_from_logs(fill_from, today) {
+        by_date.entry(d.date.clone()).or_insert(d);
     }
 
-    let mut rows: Vec<DayUsage> = by_date.into_values().collect();
-    if days > 0 && rows.len() > days {
-        rows = rows.split_off(rows.len() - days);
-    }
+    // 期間は暦の日付で切る。記録の無い日も 0 として並べ、日付の間隔を保つ。
+    let rows: Vec<DayUsage> = match window_start {
+        Some(start) => start
+            .iter_days()
+            .take_while(|d| *d <= today)
+            .map(|d| {
+                let key = d.format("%Y-%m-%d").to_string();
+                by_date.get(&key).cloned().unwrap_or(DayUsage {
+                    date: key,
+                    ..Default::default()
+                })
+            })
+            .collect(),
+        None => by_date.into_values().collect(),
+    };
     let peak_tokens = rows.iter().map(|d| d.tokens).max().unwrap_or(0);
-    let average_tokens = if rows.is_empty() {
+    let recorded: Vec<u64> = rows
+        .iter()
+        .filter(|d| d.messages > 0 || d.tokens > 0)
+        .map(|d| d.tokens)
+        .collect();
+    let average_tokens = if recorded.is_empty() {
         0
     } else {
-        rows.iter().map(|d| d.tokens).sum::<u64>() / rows.len() as u64
+        recorded.iter().sum::<u64>() / recorded.len() as u64
     };
 
     // 何時ごろに使っているかは時間帯別の記録から取る。
@@ -211,31 +245,70 @@ pub fn day_hours(date: &str) -> Result<Vec<u64>, String> {
     Ok(counts)
 }
 
-/// 当日ぶんを会話ログから数える。
+/// 過ぎた日の数え結果。過去のログは増えないので、一度数えた日は数え直さない。
+fn past_days() -> &'static Mutex<HashMap<NaiveDate, Option<DayUsage>>> {
+    static CACHE: OnceLock<Mutex<HashMap<NaiveDate, Option<DayUsage>>>> = OnceLock::new();
+    CACHE.get_or_init(Default::default)
+}
+
+/// `from` から `to` までの各日を会話ログから数え、記録のあった日だけを返す。
 ///
-/// Claude Code の日次集計は翌日に回るため、今日の行はキャッシュに載らない。
-/// 数え方が本家と完全に揃う保証はないので、暫定として扱う。
-fn count_from_logs(date: &str) -> Option<DayUsage> {
-    use chrono::{DateTime, Local, NaiveDate, TimeZone};
+/// 日次集計に載っていない日を補うためのもの。数え方が本家と完全に揃う保証はないので、暫定として扱う。
+/// 今日は記録が増え続けるので毎回数え、それより前の日は覚えておいた結果を使う。
+fn counts_from_logs(from: NaiveDate, to: NaiveDate) -> Vec<DayUsage> {
+    if from > to {
+        return Vec::new();
+    }
+    let today = chrono::Local::now().date_naive();
+    let mut known = past_days().lock().unwrap_or_else(|e| e.into_inner());
+
+    let range: Vec<NaiveDate> = from.iter_days().take_while(|d| *d <= to).collect();
+    let missing: Vec<&NaiveDate> = range
+        .iter()
+        .filter(|d| **d >= today || !known.contains_key(d))
+        .collect();
+    let mut counted = match (missing.first(), missing.last()) {
+        (Some(first), Some(last)) => scan_logs(**first, **last),
+        _ => HashMap::new(),
+    };
+    for d in missing.iter().filter(|d| ***d < today) {
+        known.insert(**d, counted.get(*d).cloned());
+    }
+
+    range
+        .iter()
+        .filter_map(|d| {
+            if *d >= today {
+                counted.remove(d)
+            } else {
+                known.get(d).cloned().flatten()
+            }
+        })
+        .collect()
+}
+
+/// 会話ログを一度だけ読み、`from` から `to` までの日ごとの使用量をまとめる。
+fn scan_logs(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, DayUsage> {
+    use chrono::{DateTime, Local, TimeZone};
+    use std::collections::HashSet;
     use std::io::BufRead;
 
-    let target = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
-    let cutoff = target
+    let Some(cutoff) = from
         .and_hms_opt(0, 0, 0)
-        .and_then(|n| Local.from_local_datetime(&n).single())?
-        .timestamp();
+        .and_then(|n| Local.from_local_datetime(&n).earliest())
+        .map(|t| t.timestamp())
+    else {
+        return HashMap::new();
+    };
 
     let mut files = Vec::new();
     collect_logs(&home().join(".claude").join("projects"), &mut files);
 
-    let mut day = DayUsage {
-        date: date.to_string(),
-        provisional: true,
-        ..Default::default()
-    };
-    let mut sessions = std::collections::HashSet::new();
+    let mut by_day: HashMap<NaiveDate, DayUsage> = HashMap::new();
+    let mut sessions: HashMap<NaiveDate, HashSet<String>> = HashMap::new();
 
     for path in files {
+        // 期間の記録を含みうるのは、期間の初日以降に触られたファイルだけ。
         let modified = std::fs::metadata(&path)
             .and_then(|m| m.modified())
             .ok()
@@ -249,7 +322,10 @@ fn count_from_logs(date: &str) -> Option<DayUsage> {
         let Ok(file) = std::fs::File::open(&path) else {
             continue;
         };
-        let mut hit = false;
+        let session = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
         for line in std::io::BufReader::new(file).lines().map_while(Result::ok) {
             let is_user = line.contains("\"type\":\"user\"");
             let is_assistant = line.contains("\"type\":\"assistant\"");
@@ -262,13 +338,19 @@ fn count_from_logs(date: &str) -> Option<DayUsage> {
             let Ok(parsed) = DateTime::parse_from_rfc3339(ts) else {
                 continue;
             };
-            if parsed.with_timezone(&Local).date_naive() != target {
+            let date = parsed.with_timezone(&Local).date_naive();
+            if date < from || date > to {
                 continue;
             }
 
-            hit = true;
+            let day = by_day.entry(date).or_insert_with(|| DayUsage {
+                date: date.format("%Y-%m-%d").to_string(),
+                provisional: true,
+                ..Default::default()
+            });
             day.messages += 1;
             day.tool_calls += line.matches("\"type\":\"tool_use\"").count() as u64;
+            sessions.entry(date).or_default().insert(session.clone());
 
             if is_assistant {
                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
@@ -285,17 +367,14 @@ fn count_from_logs(date: &str) -> Option<DayUsage> {
                 }
             }
         }
-        if hit {
-            sessions.insert(path.file_stem().map(|s| s.to_string_lossy().to_string()));
-        }
     }
 
-    day.sessions = sessions.len() as u64;
-    if day.messages == 0 {
-        None
-    } else {
-        Some(day)
+    for (date, set) in sessions {
+        if let Some(day) = by_day.get_mut(&date) {
+            day.sessions = set.len() as u64;
+        }
     }
+    by_day
 }
 
 /// モデルひとつぶんの消費。
